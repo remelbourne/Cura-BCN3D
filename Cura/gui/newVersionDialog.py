@@ -26,10 +26,11 @@ class newVersionDialog(wx.Dialog):
 		s.Add(wx.StaticText(p, -1, '(This dialog is only shown once)'))
 		s.Add(wx.StaticLine(p), flag=wx.EXPAND|wx.TOP|wx.BOTTOM, border=10)
 		s.Add(wx.StaticText(p, -1, 'New in this version:'))
-		s.Add(wx.StaticText(p, -1, '* Fixed a small issue where Cura sometimes failed enable the save button'))
-		s.Add(wx.StaticText(p, -1, '* Added save gcode shortcut key (CTRL+G)'))
-		s.Add(wx.StaticText(p, -1, '* Updated UM2, UM2go and UM2extended firmware for the new support url on errors'))
-		s.Add(wx.StaticText(p, -1, '* Fixed small issue in the UM2go firmware'))
+		s.Add(wx.StaticText(p, -1, '* Added settings for BCN3D Technologies printers'))
+		s.Add(wx.StaticText(p, -1, '* Changed some parts of the interface to give a better user experience'))
+		s.Add(wx.StaticText(p, -1, '* BCN3D Sigma is automatically set to double extrusion'))
+		s.Add(wx.StaticText(p, -1, '* Created a new tab in Cura to update the firmware in the machine'))
+		s.Add(wx.StaticText(p, -1, '* Created a new tab in Cura to be able to choose preset configurations/profiles'))
 
 		self.hasBCN3DSigma = None
 		self.hasBCN3DPlus = None
