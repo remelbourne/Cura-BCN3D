@@ -613,6 +613,7 @@ class SceneView(openglGui.glGuiPanel):
         objectSink = profile.getProfileSettingFloat("object_sink")
         if self._lastObjectSink != objectSink:
             self._lastObjectSink = objectSink
+            self._scene.updateHeadSize()
 
         wx.CallAfter(self._sceneUpdateTimer.Start, 500, True)
         self._engine.abortEngine()

@@ -121,10 +121,17 @@ class machineSettingsDialog(wx.Dialog):
 			configBase.SettingRow(left, 'machine_shape', index=idx)
 			configBase.SettingRow(left, 'gcode_flavor', index=idx)
 
+			configBase.TitleRow(right, _("Printer head size"))
+			configBase.SettingRow(right, 'extruder_head_size_min_x', index=0)
+			configBase.SettingRow(right, 'extruder_head_size_min_y', index=0)
+			configBase.SettingRow(right, 'extruder_head_size_max_x', index=0)
+			configBase.SettingRow(right, 'extruder_head_size_max_y', index=0)
+			configBase.SettingRow(right, 'extruder_head_size_height', index=0)
+
 			for i in xrange(1, extruderCount):
-				configBase.TitleRow(left, _("Extruder %d") % (i+1))
-				configBase.SettingRow(left, 'extruder_offset_x%d' % (i), index=idx)
-				configBase.SettingRow(left, 'extruder_offset_y%d' % (i), index=idx)
+				configBase.TitleRow(right, _("Extruder %d") % (i+1))
+				configBase.SettingRow(right, 'extruder_offset_x%d' % (i), index=idx)
+				configBase.SettingRow(right, 'extruder_offset_y%d' % (i), index=idx)
 
 			configBase.TitleRow(right, _("Communication settings"))
 			configBase.SettingRow(right, 'serial_port', ['AUTO'] + machineCom.serialList(), index=idx)

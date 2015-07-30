@@ -130,6 +130,7 @@ class Scene(object):
 	def updateMachineDimensions(self):
 		self._machineSize = numpy.array([profile.getMachineSettingFloat('machine_width'), profile.getMachineSettingFloat('machine_depth'), profile.getMachineSettingFloat('machine_height')])
 		self._machinePolygons = profile.getMachineSizePolygons()
+		self.updateHeadSize()
 
 	# Size offsets are offsets caused by brim, skirt, etc.
 	def updateSizeOffsets(self, force=False):
@@ -150,6 +151,51 @@ class Scene(object):
 		for obj in self._objectList:
 			obj.setPrintAreaExtends(extends[len(obj._meshList) - 1])
 
+	#size of the printing head.
+	def updateHeadSize(self, obj = None):
+		xMin = profile.getMachineSettingFloat('extruder_head_size_min_x')
+		xMax = profile.getMachineSettingFloat('extruder_head_size_max_x')
+		yMin = profile.getMachineSettingFloat('extruder_head_size_min_y')
+		yMax = profile.getMachineSettingFloat('extruder_head_size_max_y')
+		gantryHeight = profile.getMachineSettingFloat('extruder_head_size_height')
+		objectSink = profile.getProfileSettingFloat("object_sink")
+
+		self._leftToRight = xMin < xMax
+		self._frontToBack = yMin < yMax
+		self._headSizeOffsets[0] = min(xMin, xMax)
+		self._headSizeOffsets[1] = min(yMin, yMax)
+		self._gantryHeight = gantryHeight
+
+		printOneAtATime = profile.getPreference('oneAtATime') == 'True'
+		self._oneAtATime = self._gantryHeight > 0 and printOneAtATime
+		if self._oneAtATime:
+			if not self._lastOneAtATime:
+				#print mode was changed by user. We need to reset that value to test with current scene content
+				self._lastResultOneAtATime = True
+
+			for obj in self._objectList:
+				if obj.getSize()[2] - objectSink > self._gantryHeight:
+					self._oneAtATime = False
+					if self._lastResultOneAtATime:
+						if self._sceneView:
+							self._sceneView.notification.message("Info: Print one at a time mode disabled. Object too tall.")
+						break
+
+		if self._lastOneAtATime and self._oneAtATime and not self._lastResultOneAtATime:
+			if self._sceneView:
+				self._sceneView.notification.message("Info: Print one at a time mode re-enabled.")
+
+		self._lastResultOneAtATime = self._oneAtATime
+		self._lastOneAtATime = printOneAtATime
+
+		headArea = numpy.array([[-xMin,-yMin],[ xMax,-yMin],[ xMax, yMax],[-xMin, yMax]], numpy.float32)
+
+		if obj is None:
+			for obj in self._objectList:
+				obj.setHeadArea(headArea, self._headSizeOffsets)
+		else:
+			obj.setHeadArea(headArea, self._headSizeOffsets)
+
 	def isOneAtATime(self):
 		return self._oneAtATime
 
@@ -167,6 +213,7 @@ class Scene(object):
 			obj.applyMatrix(numpy.matrix(matrix, numpy.float64))
 		self._findFreePositionFor(obj)
 		self._objectList.append(obj)
+		self.updateHeadSize(obj)
 		self.updateSizeOffsets(True)
 		self.pushFree(obj)
 
