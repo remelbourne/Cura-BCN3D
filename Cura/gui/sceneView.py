@@ -1336,9 +1336,9 @@ class SceneView(openglGui.glGuiPanel):
             texture_scale = 1.0
             if machine_type == 'BCN3DSigma':
                 filename = resources.getPathForMesh('bcn3dsigma_platform.stl')
-                offset = [106,149.5,33]
+                offset = [106,149.5,23.75]
                 texture_name = 'bcn3dsigmabackplate.png'
-                texture_offset = [0,183.5,20]
+                texture_offset = [0,179.25,20]
                 texture_scale = 0.45
             elif machine_type == 'BCN3DPlus':
                 filename = resources.getPathForMesh('bcn3dplus_platform.stl')
