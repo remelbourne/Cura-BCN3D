@@ -262,7 +262,7 @@ class MachineSelectPage(InfoPage):
 class decideToUpdateSigma(InfoPage):
     def __init__(self, parent):
         super(decideToUpdateSigma, self).__init__(parent, _('Upgrade BCN3D ' + u"\u03A3" + ' Firmware'))
-        self.AddText(_('Are you sure you want to upgrade your \nfirmware to the newest available version?'))
+        self.AddText(_('Are you sure you want to upgrade your firmware to the \nnewest available version?'))
         self.AddSeperator()
         upgradeButton = self.AddButton('Upgrade Firmware')
         upgradeButton.Bind(wx.EVT_BUTTON, self.OnFirstConnect)
@@ -280,7 +280,7 @@ class decideToUpdateSigma(InfoPage):
 class FirstConnectPrinterSigma(InfoPage):
     def __init__(self, parent):
         super(FirstConnectPrinterSigma,self).__init__(parent, _("Printer connection"))
-        self.AddText(_('Please connect your printer to the computer in order to know \nyour current firmware version and if an update exists'))
+        self.AddText(_('Please connect your printer to the computer. \nOnce you see "Connected" you may proceed to the next step.'))
         self.checkBitmap = wx.Bitmap(resources.getPathForImage('checkmark.png'))
         self.crossBitmap = wx.Bitmap(resources.getPathForImage('cross.png'))
         self.unknownBitmap = wx.Bitmap(resources.getPathForImage('question.png'))
@@ -291,13 +291,15 @@ class FirstConnectPrinterSigma(InfoPage):
         self.AddSeperator()
         self.commState = self.AddCheckmark(_("Communication:"), self.unknownBitmap)
         self.unknownBitmap = wx.Bitmap(resources.getPathForImage('question.png'))
+        self.infoBox = self.AddInfoBox()
         self.machineState = self.AddText("")
         self.errorLogButton = self.AddButton(_("Show error log"))
         self.errorLogButton.Show(False)
         self.comm = None
         self.Bind(wx.EVT_BUTTON, self.OnErrorLog, self.errorLogButton)
         self.AddSeperator()
-        getFirstLine = self.AddButton(_("Get current firmware version"))
+        self.AddText(_('Press on the following button to know your current \nfirmware version and check whether there are new releases. \nThis might take a few seconds.'))
+        getFirstLine = self.AddButton(_("Get firmware version"))
         getFirstLine.Bind(wx.EVT_BUTTON, self.OnGetFirstLine)
 
     def __del__(self):
@@ -315,6 +317,8 @@ class FirstConnectPrinterSigma(InfoPage):
             self.comm = None
             wx.CallAfter(self.OnCheckClick)
             return
+        self.infoBox.SetBusy(_("Connecting to machine."))
+        self.commState.SetBitmap(self.unknownBitmap)
         self.comm = machineCom.MachineCom(callbackObject=self)
         self.checkupState = 0
 
@@ -330,6 +334,180 @@ class FirstConnectPrinterSigma(InfoPage):
         if self.comm.isOperational():
             wx.CallAfter(self.commState.SetBitmap, self.checkBitmap)
             wx.CallAfter(self.machineState.SetLabel, _("Communication State: %s") % (self.comm.getStateString()))
+            wx.CallAfter(self.infoBox.SetReadyIndicator)
+        elif self.comm.isError():
+            wx.CallAfter(self.commState.SetBitmap, self.crossBitmap)
+            wx.CallAfter(self.infoBox.SetError, _("Failed to establish connection with the printer."), 'http://wiki.ultimaker.com/Cura:_Connection_problems')
+            wx.CallAfter(self.machineState.SetLabel, '%s' % (self.comm.getErrorString()))
+            wx.CallAfter(self.errorLogButton.Show, True)
+            wx.CallAfter(self.Layout)
+        else:
+            wx.CallAfter(self.machineState.SetLabel, _("Communication State: %s") % (self.comm.getStateString()))
+
+    def mcMessage(self, message):
+        if self.checkupState >= 3 and self.checkupState < 10 and ('_min' in message or '_max' in message):
+            for data in message.split(' '):
+                if ':' in data:
+                    tag, value = data.split(':', 1)
+                    if tag == 'x_min':
+                        self.xMinStop = (value == 'H' or value == 'TRIGGERED')
+                    if tag == 'x_max':
+                        self.xMaxStop = (value == 'H' or value == 'TRIGGERED')
+                    if tag == 'y_min':
+                        self.yMinStop = (value == 'H' or value == 'TRIGGERED')
+                    if tag == 'y_max':
+                        self.yMaxStop = (value == 'H' or value == 'TRIGGERED')
+                    if tag == 'z_min':
+                        self.zMinStop = (value == 'H' or value == 'TRIGGERED')
+                    if tag == 'z_max':
+                        self.zMaxStop = (value == 'H' or value == 'TRIGGERED')
+            if ':' in message:
+                tag, value = map(str.strip, message.split(':', 1))
+                if tag == 'x_min':
+                    self.xMinStop = (value == 'H' or value == 'TRIGGERED')
+                if tag == 'x_max':
+                    self.xMaxStop = (value == 'H' or value == 'TRIGGERED')
+                if tag == 'y_min':
+                    self.yMinStop = (value == 'H' or value == 'TRIGGERED')
+                if tag == 'y_max':
+                    self.yMaxStop = (value == 'H' or value == 'TRIGGERED')
+                if tag == 'z_min':
+                    self.zMinStop = (value == 'H' or value == 'TRIGGERED')
+                if tag == 'z_max':
+                    self.zMaxStop = (value == 'H' or value == 'TRIGGERED')
+            if 'z_max' in message:
+                self.comm.sendCommand('M119')
+
+            if self.checkupState == 3:
+                if not self.xMinStop and not self.xMaxStop and not self.yMinStop and not self.yMaxStop and not self.zMinStop and not self.zMaxStop:
+                    if profile.getMachineSetting('machine_type') == 'ultimaker_plus':
+                        self.checkupState = 5
+                        wx.CallAfter(self.infoBox.SetAttention, _("Please press the left X endstop."))
+                    else:
+                        self.checkupState = 4
+                        wx.CallAfter(self.infoBox.SetAttention, _("Please press the right X endstop."))
+            elif self.checkupState == 4:
+                if not self.xMinStop and self.xMaxStop and not self.yMinStop and not self.yMaxStop and not self.zMinStop and not self.zMaxStop:
+                    self.checkupState = 5
+                    wx.CallAfter(self.infoBox.SetAttention, _("Please press the left X endstop."))
+            elif self.checkupState == 5:
+                if self.xMinStop and not self.xMaxStop and not self.yMinStop and not self.yMaxStop and not self.zMinStop and not self.zMaxStop:
+                    self.checkupState = 6
+                    wx.CallAfter(self.infoBox.SetAttention, _("Please press the front Y endstop."))
+            elif self.checkupState == 6:
+                if not self.xMinStop and not self.xMaxStop and self.yMinStop and not self.yMaxStop and not self.zMinStop and not self.zMaxStop:
+                    if profile.getMachineSetting('machine_type') == 'ultimaker_plus':
+                        self.checkupState = 8
+                        wx.CallAfter(self.infoBox.SetAttention, _("Please press the top Z endstop."))
+                    else:
+                        self.checkupState = 7
+                        wx.CallAfter(self.infoBox.SetAttention, _("Please press the back Y endstop."))
+            elif self.checkupState == 7:
+                if not self.xMinStop and not self.xMaxStop and not self.yMinStop and self.yMaxStop and not self.zMinStop and not self.zMaxStop:
+                    self.checkupState = 8
+                    wx.CallAfter(self.infoBox.SetAttention, _("Please press the top Z endstop."))
+            elif self.checkupState == 8:
+                if not self.xMinStop and not self.xMaxStop and not self.yMinStop and not self.yMaxStop and self.zMinStop and not self.zMaxStop:
+                    if profile.getMachineSetting('machine_type') == 'ultimaker_plus':
+                        self.checkupState = 10
+                        self.comm.close()
+                        wx.CallAfter(self.infoBox.SetInfo, _("Checkup finished"))
+                        wx.CallAfter(self.infoBox.SetReadyIndicator)
+                    else:
+                        self.checkupState = 9
+                        wx.CallAfter(self.infoBox.SetAttention, _("Please press the bottom Z endstop."))
+            elif self.checkupState == 9:
+                if not self.xMinStop and not self.xMaxStop and not self.yMinStop and not self.yMaxStop and not self.zMinStop and self.zMaxStop:
+                    self.checkupState = 10
+                    self.comm.close()
+                    wx.CallAfter(self.infoBox.SetInfo, _("Checkup finished"))
+                    wx.CallAfter(self.infoBox.SetReadyIndicator)
+
+    def mcProgress(self, lineNr):
+        pass
+
+    def mcZChange(self, newZ):
+        pass
+
+    def OnGetFirstLine(self, e = None):
+        return
+
+class decideToUpdatePlus(InfoPage):
+    def __init__(self, parent):
+        super(decideToUpdatePlus, self).__init__(parent, _('Upgrade BCN3D + Firmware'))
+        self.AddText(_('Are you sure you want to upgrade your \nfirmware to the newest available version?'))
+        self.AddSeperator()
+        upgradeButton = self.AddButton('Upgrade Firmware')
+        upgradeButton.Bind(wx.EVT_BUTTON, self.OnFirstConnect)
+
+    def AllowNext(self):
+        return False
+
+    def AllowBack(self):
+        return True
+
+    def OnFirstConnect(self, e):
+        self.GetParent().FindWindowById(wx.ID_FORWARD).Enable()
+        self.GetParent().ShowPage(self.GetNext())
+
+class FirstConnectPrinterPlus(InfoPage):
+    def __init__(self, parent):
+        super(FirstConnectPrinterPlus,self).__init__(parent, _("Printer connection"))
+        self.AddText(_('Please connect your printer to the computer. \nOnce you see "Connected" you may proceed to the next step.'))
+        self.checkBitmap = wx.Bitmap(resources.getPathForImage('checkmark.png'))
+        self.crossBitmap = wx.Bitmap(resources.getPathForImage('cross.png'))
+        self.unknownBitmap = wx.Bitmap(resources.getPathForImage('question.png'))
+
+        connectPritner = self.AddButton(_("Connect printer"))
+        connectPritner.Bind(wx.EVT_BUTTON, self.OnCheckClick)
+        connectPritner.Enable(True)
+        self.AddSeperator()
+        self.commState = self.AddCheckmark(_("Communication:"), self.unknownBitmap)
+        self.unknownBitmap = wx.Bitmap(resources.getPathForImage('question.png'))
+        self.infoBox = self.AddInfoBox()
+        self.machineState = self.AddText("")
+        self.errorLogButton = self.AddButton(_("Show error log"))
+        self.errorLogButton.Show(False)
+        self.comm = None
+        self.Bind(wx.EVT_BUTTON, self.OnErrorLog, self.errorLogButton)
+        self.AddSeperator()
+        self.AddText(_('Press on the following button to know your current \nfirmware version and check whether there are new releases. \nThis might take a few seconds.'))
+        getFirstLine = self.AddButton(_("Get firmware version"))
+        getFirstLine.Bind(wx.EVT_BUTTON, self.OnGetFirstLine)
+
+    def __del__(self):
+        if self.comm is not None:
+            self.comm.close()
+
+    def AllowNext(self):
+        return False
+
+    def OnCheckClick(self, e=None):
+        self.errorLogButton.Show(False)
+        if self.comm is not None:
+            self.comm.close()
+            del self.comm
+            self.comm = None
+            wx.CallAfter(self.OnCheckClick)
+            return
+        self.infoBox.SetBusy(_("Connecting to machine."))
+        self.commState.SetBitmap(self.unknownBitmap)
+        self.comm = machineCom.MachineCom(callbackObject=self)
+        self.checkupState = 0
+
+    def OnErrorLog(self, e):
+        printWindow.LogWindow('\n'.join(self.comm.getLog()))
+
+    def mcLog(self, message):
+        pass
+
+    def mcStateChange(self, state):
+        if self.comm is None:
+            return
+        if self.comm.isOperational():
+            wx.CallAfter(self.commState.SetBitmap, self.checkBitmap)
+            wx.CallAfter(self.machineState.SetLabel, _("Communication State: %s") % (self.comm.getStateString()))
+            wx.CallAfter(self.infoBox.SetReadyIndicator)
         elif self.comm.isError():
             wx.CallAfter(self.commState.SetBitmap, self.crossBitmap)
             wx.CallAfter(self.infoBox.SetError, _("Failed to establish connection with the printer."), 'http://wiki.ultimaker.com/Cura:_Connection_problems')
@@ -428,196 +606,6 @@ class FirstConnectPrinterSigma(InfoPage):
     def OnGetFirstLine(self, e = None):
 
         machineCom.MachineCom._readline(1)
-
-
-class decideToUpdatePlus(InfoPage):
-    def __init__(self, parent):
-        super(decideToUpdatePlus, self).__init__(parent, _('Upgrade BCN3D + Firmware'))
-        self.AddText(_('Are you sure you want to upgrade your \nfirmware to the newest available version?'))
-        self.AddSeperator()
-        upgradeButton = self.AddButton('Upgrade Firmware')
-        upgradeButton.Bind(wx.EVT_BUTTON, self.OnFirstConnect)
-
-    def AllowNext(self):
-        return False
-
-    def AllowBack(self):
-        return True
-
-    def OnFirstConnect(self, e):
-        self.GetParent().FindWindowById(wx.ID_FORWARD).Enable()
-        self.GetParent().ShowPage(self.GetNext())
-
-class FirstConnectPrinterPlus(InfoPage):
-    def __init__(self, parent):
-        super(FirstConnectPrinterPlus,self).__init__(parent, _("Printer connection"))
-        self.AddText(_('Please connect your printer to the computer in order to know \nyour current firmware version and if an update exists'))
-        self.checkBitmap = wx.Bitmap(resources.getPathForImage('checkmark.png'))
-        self.crossBitmap = wx.Bitmap(resources.getPathForImage('cross.png'))
-        self.unknownBitmap = wx.Bitmap(resources.getPathForImage('question.png'))
-
-        connectPritner = self.AddButton(_("Connect printer"))
-        connectPritner.Bind(wx.EVT_BUTTON, self.OnCheckClick)
-        self.AddSeperator()
-        self.commState = self.AddCheckmark(_("Communication:"), self.unknownBitmap)
-        self.unknownBitmap = wx.Bitmap(resources.getPathForImage('question.png'))
-        self.infoBox = self.AddInfoBox()
-        self.machineState = self.AddText("")
-        self.errorLogButton = self.AddButton(_("Show error log"))
-        self.errorLogButton.Show(False)
-        self.AddSeperator()
-        self.comm = None
-
-        self.Bind(wx.EVT_BUTTON, self.OnErrorLog, self.errorLogButton)
-
-    def __del__(self):
-        if self.comm is not None:
-            self.comm.close()
-
-    def AllowNext(self):
-        return False
-
-    def OnCheckClick(self, e=None):
-        self.errorLogButton.Show(False)
-        if self.comm is not None:
-            self.comm.close()
-            del self.comm
-            self.comm = None
-            wx.CallAfter(self.OnCheckClick)
-            return
-        self.infoBox.SetBusy(_("Connecting to machine."))
-        self.commState.SetBitmap(self.unknownBitmap)
-        self.checkupState = 0
-        self.checkExtruderNr = 0
-        self.comm = machineCom.MachineCom(port='AUTO', baudrate=250000, callbackObject=self)
-
-    def OnErrorLog(self, e):
-        printWindow.LogWindow('\n'.join(self.comm.getLog()))
-
-    def mcLog(self, message):
-        pass
-
-    def mcStateChange(self, state):
-        if self.comm is None:
-            return
-        if self.comm.isOperational():
-            wx.CallAfter(self.commState.SetBitmap, self.checkBitmap)
-            wx.CallAfter(self.machineState.SetLabel, _("Communication State: %s") % (self.comm.getStateString()))
-        elif self.comm.isError():
-            wx.CallAfter(self.commState.SetBitmap, self.crossBitmap)
-            wx.CallAfter(self.infoBox.SetError, _("Failed to establish connection with the printer."), 'http://wiki.ultimaker.com/Cura:_Connection_problems')
-            wx.CallAfter(self.machineState.SetLabel, '%s' % (self.comm.getErrorString()))
-            wx.CallAfter(self.errorLogButton.Show, True)
-            wx.CallAfter(self.Layout)
-        else:
-            wx.CallAfter(self.machineState.SetLabel, _("Communication State: %s") % (self.comm.getStateString()))
-
-    def mcMessage(self, message):
-        if self.checkupState >= 3 and self.checkupState < 10 and ('_min' in message or '_max' in message):
-            for data in message.split(' '):
-                if ':' in data:
-                    tag, value = data.split(':', 1)
-                    if tag == 'x_min':
-                        self.xMinStop = (value == 'H' or value == 'TRIGGERED')
-                    if tag == 'x_max':
-                        self.xMaxStop = (value == 'H' or value == 'TRIGGERED')
-                    if tag == 'y_min':
-                        self.yMinStop = (value == 'H' or value == 'TRIGGERED')
-                    if tag == 'y_max':
-                        self.yMaxStop = (value == 'H' or value == 'TRIGGERED')
-                    if tag == 'z_min':
-                        self.zMinStop = (value == 'H' or value == 'TRIGGERED')
-                    if tag == 'z_max':
-                        self.zMaxStop = (value == 'H' or value == 'TRIGGERED')
-            if ':' in message:
-                tag, value = map(str.strip, message.split(':', 1))
-                if tag == 'x_min':
-                    self.xMinStop = (value == 'H' or value == 'TRIGGERED')
-                if tag == 'x_max':
-                    self.xMaxStop = (value == 'H' or value == 'TRIGGERED')
-                if tag == 'y_min':
-                    self.yMinStop = (value == 'H' or value == 'TRIGGERED')
-                if tag == 'y_max':
-                    self.yMaxStop = (value == 'H' or value == 'TRIGGERED')
-                if tag == 'z_min':
-                    self.zMinStop = (value == 'H' or value == 'TRIGGERED')
-                if tag == 'z_max':
-                    self.zMaxStop = (value == 'H' or value == 'TRIGGERED')
-            if 'z_max' in message:
-                self.comm.sendCommand('M119')
-
-            if self.checkupState == 3:
-                if not self.xMinStop and not self.xMaxStop and not self.yMinStop and not self.yMaxStop and not self.zMinStop and not self.zMaxStop:
-                    if profile.getMachineSetting('machine_type') == 'ultimaker_plus':
-                        self.checkupState = 5
-                        wx.CallAfter(self.infoBox.SetAttention, _("Please press the left X endstop."))
-                    else:
-                        self.checkupState = 4
-                        wx.CallAfter(self.infoBox.SetAttention, _("Please press the right X endstop."))
-            elif self.checkupState == 4:
-                if not self.xMinStop and self.xMaxStop and not self.yMinStop and not self.yMaxStop and not self.zMinStop and not self.zMaxStop:
-                    self.checkupState = 5
-                    wx.CallAfter(self.infoBox.SetAttention, _("Please press the left X endstop."))
-            elif self.checkupState == 5:
-                if self.xMinStop and not self.xMaxStop and not self.yMinStop and not self.yMaxStop and not self.zMinStop and not self.zMaxStop:
-                    self.checkupState = 6
-                    wx.CallAfter(self.infoBox.SetAttention, _("Please press the front Y endstop."))
-            elif self.checkupState == 6:
-                if not self.xMinStop and not self.xMaxStop and self.yMinStop and not self.yMaxStop and not self.zMinStop and not self.zMaxStop:
-                    if profile.getMachineSetting('machine_type') == 'ultimaker_plus':
-                        self.checkupState = 8
-                        wx.CallAfter(self.infoBox.SetAttention, _("Please press the top Z endstop."))
-                    else:
-                        self.checkupState = 7
-                        wx.CallAfter(self.infoBox.SetAttention, _("Please press the back Y endstop."))
-            elif self.checkupState == 7:
-                if not self.xMinStop and not self.xMaxStop and not self.yMinStop and self.yMaxStop and not self.zMinStop and not self.zMaxStop:
-                    self.checkupState = 8
-                    wx.CallAfter(self.infoBox.SetAttention, _("Please press the top Z endstop."))
-            elif self.checkupState == 8:
-                if not self.xMinStop and not self.xMaxStop and not self.yMinStop and not self.yMaxStop and self.zMinStop and not self.zMaxStop:
-                    if profile.getMachineSetting('machine_type') == 'ultimaker_plus':
-                        self.checkupState = 10
-                        self.comm.close()
-                        wx.CallAfter(self.infoBox.SetInfo, _("Checkup finished"))
-                        wx.CallAfter(self.infoBox.SetReadyIndicator)
-                    else:
-                        self.checkupState = 9
-                        wx.CallAfter(self.infoBox.SetAttention, _("Please press the bottom Z endstop."))
-            elif self.checkupState == 9:
-                if not self.xMinStop and not self.xMaxStop and not self.yMinStop and not self.yMaxStop and not self.zMinStop and self.zMaxStop:
-                    self.checkupState = 10
-                    self.comm.close()
-                    wx.CallAfter(self.infoBox.SetInfo, _("Checkup finished"))
-                    wx.CallAfter(self.infoBox.SetReadyIndicator)
-
-    def mcProgress(self, lineNr):
-        pass
-
-    def mcZChange(self, newZ):
-        pass
-
-class dddd(InfoPage):
-    def __init__(self, parent):
-        super(dddd,self).__init__(parent, _("Printer connection"))
-        self.AddText(_('Please connect the printer to your computer with the USB cable.'))
-        self.connectButton = self.AddButton(_('Connect to printer'))
-        self.comm = None
-
-        self.infoBox = self.AddInfoBox()
-        self.Bind(wx.EVT_BUTTON, self.OnConnect, self.connectButton)
-
-    def OnConnect(self, e = None):
-        if self.comm is not None:
-            self.comm.close()
-            del self.comm
-            self.comm = None
-            wx.CallAfter(self.OnConnect)
-            return
-        self.connectButton.Enable(False)
-        self.comm = machineFirmCom.MachineFirmCom(callbackObject=self)
-        self.infoBox.SetBusy(_('Connecting to machine.'))
-        self._wizardState = 0
 
 
 class BCN3DSigmaReadyPage(InfoPage):

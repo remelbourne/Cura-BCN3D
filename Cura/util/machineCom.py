@@ -240,7 +240,7 @@ class MachineCom(object):
         if self._state == self.STATE_CONNECTING:
             return "Connecting"
         if self._state == self.STATE_OPERATIONAL:
-            return "Operational"
+            return "Connected"
         if self._state == self.STATE_PRINTING:
             return "Printing"
         if self._state == self.STATE_PAUSED:

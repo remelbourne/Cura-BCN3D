@@ -224,7 +224,6 @@ class InfoPage(wx.wizard.WizardPageSimple):
     def StoreData(self):
         pass
 
-
 class FirstInfoPage(InfoPage):
     def __init__(self, parent, addNew):
         if addNew:
