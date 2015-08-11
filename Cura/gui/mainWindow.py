@@ -22,6 +22,7 @@ from Cura.gui.tools import pidDebugger
 from Cura.gui.tools import minecraftImport
 from Cura.util import profile
 from Cura.util import version
+from Cura.gui import configFirmware
 import platform
 from Cura.util import meshLoader
 
@@ -190,9 +191,13 @@ class mainWindow(wx.Frame):
 
         helpMenu = wx.Menu()
         i = helpMenu.Append(-1, _("Online documentation..."))
-        self.Bind(wx.EVT_MENU, lambda e: webbrowser.open('http://daid.github.com/Cura'), i)
-        i = helpMenu.Append(-1, _("Report a problem..."))
-        self.Bind(wx.EVT_MENU, lambda e: webbrowser.open('https://github.com/daid/Cura/issues'), i)
+        self.Bind(wx.EVT_MENU, lambda e: webbrowser.open('http://www.bcn3dtechnologies.com/es/forum'), i)
+        if sys.platform.startswith('win'):
+            i = helpMenu.Append(-1, _("Report a problem..."))
+            self.Bind(wx.EVT_MENU, lambda e: webbrowser.open('https://github.com/BCN3D/BCN3D-Cura-Windows/issues'), i)
+        elif sys.platform.startswith('darwin'):
+            i = helpMenu.Append(-1, _("Report a problem..."))
+            self.Bind(wx.EVT_MENU, lambda e: webbrowser.open('https://github.com/BCN3D/BCN3D-Cura-Mac/issues'), i)
         i = helpMenu.Append(-1, _("Check for update..."))
         self.Bind(wx.EVT_MENU, self.OnCheckForUpdate, i)
         i = helpMenu.Append(-1, _("Open YouMagine website..."))
@@ -624,7 +629,7 @@ class mainWindow(wx.Frame):
                     wx.MessageBox(_("You are running the latest version of firmware!"), _("Awesome!"), wx.ICON_INFORMATION)
 
     def OnUpdateHardwareFirmware(self, e):
-        firmwareInstall.UpdateFirmware(self)
+        configFirmware.ConfigFirmware()
 
 
     def OnAddNewMachine(self, e):
