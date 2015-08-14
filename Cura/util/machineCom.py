@@ -319,7 +319,7 @@ class MachineCom(object):
             print self._baudrate
             if not programmer.isConnected():
                 for self._port in serialList(False):
-                    print 'por que no llegamos a entrar'
+                    print 'es bueno que entremos aqui'
                     try:
                         self._log("Connecting to: %s (programmer)" % (self._port))
                         programmer.connect(self._port)

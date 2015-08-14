@@ -122,6 +122,10 @@ class machineSettingsDialog(wx.Dialog):
 			configBase.SettingRow(left, 'gcode_flavor', index=idx)
 
 			configBase.TitleRow(right, _("Printer head size"))
+			configBase.SettingRow(right, 'extruder_head_size_min_x', index=idx)
+			configBase.SettingRow(right, 'extruder_head_size_min_y', index=idx)
+			configBase.SettingRow(right, 'extruder_head_size_max_x', index=idx)
+			configBase.SettingRow(right, 'extruder_head_size_max_y', index=idx)
 			configBase.SettingRow(right, 'extruder_head_size_height', index=idx)
 
 			for i in xrange(1, extruderCount):

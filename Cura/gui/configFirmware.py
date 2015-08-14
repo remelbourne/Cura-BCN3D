@@ -319,7 +319,7 @@ class FirstConnectPrinterSigma(InfoPage):
             return
         self.infoBox.SetBusy(_("Connecting to machine."))
         self.commState.SetBitmap(self.unknownBitmap)
-        self.comm = machineCom.MachineCom(callbackObject=self)
+        self.comm = machineCom.MachineCom(baudrate=250000, callbackObject=self)
         self.checkupState = 0
 
     def OnErrorLog(self, e):
