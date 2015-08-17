@@ -454,7 +454,7 @@ setting('postSwitchExtruder.gcode', """;Switch between the current extruder and 
 """, str, 'alteration', 'alteration')
 
 setting('startMode', 'Simple', ['Simple', 'Normal'], 'preference', 'hidden')
-setting('simpleModeExtruder', '1_1', str, 'preference', 'hidden')
+setting('simpleModeExtruder', '1_Left Extruder', str, 'preference', 'hidden')
 setting('simpleModeProfile', '3_normal', str, 'preference', 'hidden')
 setting('simpleModeMaterial', '2_pla', str, 'preference', 'hidden')
 setting('oneAtATime', 'True', bool, 'preference', 'hidden')

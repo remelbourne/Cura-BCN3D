@@ -495,8 +495,7 @@ class MachineSelectPage(InfoPage):
                 profile.putMachineSetting('extruder_head_size_max_y', '0')
                 profile.putMachineSetting('extruder_head_size_height', '0')
                 profile.putMachineSetting('serial_port', 'AUTO')
-                profile.putMachineSetting('serial_baud', '250000')
-                profile.putMachineSetting('serial_baud_auto', '250000')
+                profile.putMachineSetting('serial_baud', 'AUTO')
                 profile.putMachineSetting('gcode_flavor', 'RepRap (Marlin/Sprinter)')
             if self.BCN3DPlusRadio.GetValue():
                 profile.putMachineSetting('machine_width', '250')
@@ -513,7 +512,7 @@ class MachineSelectPage(InfoPage):
                 profile.putMachineSetting('extruder_head_size_max_y', '0')
                 profile.putMachineSetting('extruder_head_size_height', '0')
                 profile.putMachineSetting('serial_port', 'AUTO')
-                profile.putMachineSetting('serial_baud', '250000')
+                profile.putMachineSetting('serial_baud', 'AUTO')
                 profile.putMachineSetting('gcode_flavor', 'RepRap (Marlin/Sprinter)')
             if self.BCN3DRRadio.GetValue():
                 profile.putMachineSetting('machine_width', '170')
@@ -532,7 +531,7 @@ class MachineSelectPage(InfoPage):
                 profile.putMachineSetting('extruder_head_size_max_y', '0')
                 profile.putMachineSetting('extruder_head_size_height', '0')
                 profile.putMachineSetting('serial_port', 'AUTO')
-                profile.putMachineSetting('serial_baud', '250000')
+                profile.putMachineSetting('serial_baud', 'AUTO')
                 profile.putMachineSetting('gcode_flavor', 'RepRap (Marlin/Sprinter)')
             if self.Ultimaker2Radio.GetValue():
                 profile.putMachineSetting('machine_width', '230')
@@ -563,9 +562,6 @@ class MachineSelectPage(InfoPage):
             profile.putProfileSetting('fan_full_height', '5.0')
             profile.putMachineSetting('extruder_offset_x1', '0.0')
             profile.putMachineSetting('extruder_offset_y1', '0.0')
-            profile.putMachineSetting('serial_port', 'AUTO')
-            profile.putMachineSetting('serial_baud', '250000')
-            profile.putMachineSetting('serial_baud_auto', '250000')
             if self.UltimakerRadio.GetValue():
                 profile.putMachineSetting('machine_width', '205')
                 profile.putMachineSetting('machine_depth', '205')

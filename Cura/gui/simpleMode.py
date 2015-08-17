@@ -13,74 +13,173 @@ class simpleModePanel(wx.Panel):
 		super(simpleModePanel, self).__init__(parent)
 		self._callback = callback
 
-		self._print_profile_options = []
-		self._print_material_options = []
+		if profile.getMachineSetting('machine_type') == 'BCN3DSigma':
+			#self._print_extruder_options = []
+			self._print_profile_options = []
+			self._print_material_options = []
 
-		printTypePanel = wx.Panel(self)
-		for filename in resources.getSimpleModeProfiles():
-			cp = configparser.ConfigParser()
-			cp.read(filename)
-			base_filename = os.path.splitext(os.path.basename(filename))[0]
-			name = base_filename
-			if cp.has_option('info', 'name'):
-				name = cp.get('info', 'name')
-			button = wx.RadioButton(printTypePanel, -1, name, style=wx.RB_GROUP if len(self._print_profile_options) == 0 else 0)
-			button.base_filename = base_filename
-			button.filename = filename
-			self._print_profile_options.append(button)
-			if profile.getPreference('simpleModeProfile') == base_filename:
-				button.SetValue(True)
 
-		printMaterialPanel = wx.Panel(self)
-		for filename in resources.getSimpleModeMaterials():
-			cp = configparser.ConfigParser()
-			cp.read(filename)
-			base_filename = os.path.splitext(os.path.basename(filename))[0]
-			name = base_filename
-			if cp.has_option('info', 'name'):
-				name = cp.get('info', 'name')
-			button = wx.RadioButton(printMaterialPanel, -1, name, style=wx.RB_GROUP if len(self._print_material_options) == 0 else 0)
-			button.base_filename = base_filename
-			button.filename = filename
-			self._print_material_options.append(button)
-			if profile.getPreference('simpleModeMaterial') == base_filename:
-				button.SetValue(True)
+			#printExtruderPanel = wx.Panel(self)
+			#for filename in resources.getSimpleModeExtruders():
+			#	cp = configparser.ConfigParser()
+			#	cp.read(filename)
+			#	base_filename = os.path.splitext(os.path.basename(filename))[0]
+			#	name = base_filename
+			#	if cp.has_option('info', 'name'):
+			#		name = cp.get('info', 'name')
+			#	button = wx.RadioButton(printExtruderPanel, -1, name, style=wx.RB_GROUP if len(self._print_extruder_options) == 0 else 0)
+			#	button.base_filename = base_filename
+			#	button.filename = filename
+			#	self._print_extruder_options.append(button)
+			#	if profile.getPreference('simpleModeExtruder') == base_filename:
+			#		button.SetValue(True)
 
-		if profile.getMachineSetting('gcode_flavor') == 'UltiGCode':
-			printMaterialPanel.Show(False)
-		
-		self.printSupport = wx.CheckBox(self, -1, _("Print support structure"))
+			printTypePanel = wx.Panel(self)
+			for filename in resources.getSimpleModeProfiles():
+				cp = configparser.ConfigParser()
+				cp.read(filename)
+				base_filename = os.path.splitext(os.path.basename(filename))[0]
+				name = base_filename
+				if cp.has_option('info', 'name'):
+					name = cp.get('info', 'name')
+				button = wx.RadioButton(printTypePanel, -1, name, style=wx.RB_GROUP if len(self._print_profile_options) == 0 else 0)
+				button.base_filename = base_filename
+				button.filename = filename
+				self._print_profile_options.append(button)
+				if profile.getPreference('simpleModeProfile') == base_filename:
+					button.SetValue(True)
 
-		sizer = wx.GridBagSizer()
-		self.SetSizer(sizer)
+			printMaterialPanel = wx.Panel(self)
+			for filename in resources.getSimpleModeMaterials():
+				cp = configparser.ConfigParser()
+				cp.read(filename)
+				base_filename = os.path.splitext(os.path.basename(filename))[0]
+				name = base_filename
+				if cp.has_option('info', 'name'):
+					name = cp.get('info', 'name')
+				button = wx.RadioButton(printMaterialPanel, -1, name, style=wx.RB_GROUP if len(self._print_material_options) == 0 else 0)
+				button.base_filename = base_filename
+				button.filename = filename
+				self._print_material_options.append(button)
+				if profile.getPreference('simpleModeMaterial') == base_filename:
+					button.SetValue(True)
 
-		sb = wx.StaticBox(printTypePanel, label=_("Select a quickprint profile:"))
-		boxsizer = wx.StaticBoxSizer(sb, wx.VERTICAL)
-		for button in self._print_profile_options:
-			boxsizer.Add(button)
-		printTypePanel.SetSizer(wx.BoxSizer(wx.VERTICAL))
-		printTypePanel.GetSizer().Add(boxsizer, flag=wx.EXPAND)
-		sizer.Add(printTypePanel, (0,0), flag=wx.EXPAND)
+			if profile.getMachineSetting('gcode_flavor') == 'UltiGCode':
+				printMaterialPanel.Show(False)
 
-		sb = wx.StaticBox(printMaterialPanel, label=_("Material:"))
-		boxsizer = wx.StaticBoxSizer(sb, wx.VERTICAL)
-		for button in self._print_material_options:
-			boxsizer.Add(button)
-		printMaterialPanel.SetSizer(wx.BoxSizer(wx.VERTICAL))
-		printMaterialPanel.GetSizer().Add(boxsizer, flag=wx.EXPAND)
-		sizer.Add(printMaterialPanel, (1,0), flag=wx.EXPAND)
+			self.printSupport = wx.CheckBox(self, -1, _("Print support structure"))
 
-		sb = wx.StaticBox(self, label=_("Other:"))
-		boxsizer = wx.StaticBoxSizer(sb, wx.VERTICAL)
-		boxsizer.Add(self.printSupport)
-		sizer.Add(boxsizer, (2,0), flag=wx.EXPAND)
+			sizer = wx.GridBagSizer()
+			self.SetSizer(sizer)
 
-		for button in self._print_profile_options:
-			button.Bind(wx.EVT_RADIOBUTTON, self._update)
-		for button in self._print_material_options:
-			button.Bind(wx.EVT_RADIOBUTTON, self._update)
+			#sb = wx.StaticBox(printExtruderPanel, label=_("Select number of extruders:"))
+			#boxsizer = wx.StaticBoxSizer(sb, wx.VERTICAL)
+			#for button in self._print_extruder_options:
+			#	boxsizer.Add(button)
+			#printExtruderPanel.SetSizer(wx.BoxSizer(wx.VERTICAL))
+			#printExtruderPanel.GetSizer().Add(boxsizer, flag=wx.EXPAND)
+			#sizer.Add(printExtruderPanel, (0,0), flag=wx.EXPAND)
 
-		self.printSupport.Bind(wx.EVT_CHECKBOX, self._update)
+			sb = wx.StaticBox(printMaterialPanel, label=_("Select material for printing:"))
+			boxsizer = wx.StaticBoxSizer(sb, wx.VERTICAL)
+			for button in self._print_material_options:
+				boxsizer.Add(button)
+			printMaterialPanel.SetSizer(wx.BoxSizer(wx.VERTICAL))
+			printMaterialPanel.GetSizer().Add(boxsizer, flag=wx.EXPAND)
+			sizer.Add(printMaterialPanel, (1,0), flag=wx.EXPAND)
+
+			sb = wx.StaticBox(printTypePanel, label=_("Select a quickprint profile:"))
+			boxsizer = wx.StaticBoxSizer(sb, wx.VERTICAL)
+			for button in self._print_profile_options:
+				boxsizer.Add(button)
+			printTypePanel.SetSizer(wx.BoxSizer(wx.VERTICAL))
+			printTypePanel.GetSizer().Add(boxsizer, flag=wx.EXPAND)
+			sizer.Add(printTypePanel, (2,0), flag=wx.EXPAND)
+
+			sb = wx.StaticBox(self, label=_("Other:"))
+			boxsizer = wx.StaticBoxSizer(sb, wx.VERTICAL)
+			boxsizer.Add(self.printSupport)
+			sizer.Add(boxsizer, (3,0), flag=wx.EXPAND)
+
+			for button in self._print_profile_options:
+				button.Bind(wx.EVT_RADIOBUTTON, self._update)
+			for button in self._print_material_options:
+				button.Bind(wx.EVT_RADIOBUTTON, self._update)
+			#for button in self._print_extruder_options:
+			#	button.Bind(wx.EVT_RADIOBUTTON, self._update)
+
+			self.printSupport.Bind(wx.EVT_CHECKBOX, self._update)
+
+
+		else:
+			self._print_material_options = []
+			self._print_profile_options = []
+
+			printTypePanel = wx.Panel(self)
+			for filename in resources.getSimpleModeProfiles():
+				cp = configparser.ConfigParser()
+				cp.read(filename)
+				base_filename = os.path.splitext(os.path.basename(filename))[0]
+				name = base_filename
+				if cp.has_option('info', 'name'):
+					name = cp.get('info', 'name')
+				button = wx.RadioButton(printTypePanel, -1, name, style=wx.RB_GROUP if len(self._print_profile_options) == 0 else 0)
+				button.base_filename = base_filename
+				button.filename = filename
+				self._print_profile_options.append(button)
+				if profile.getPreference('simpleModeProfile') == base_filename:
+					button.SetValue(True)
+
+			printMaterialPanel = wx.Panel(self)
+			for filename in resources.getSimpleModeMaterials():
+				cp = configparser.ConfigParser()
+				cp.read(filename)
+				base_filename = os.path.splitext(os.path.basename(filename))[0]
+				name = base_filename
+				if cp.has_option('info', 'name'):
+					name = cp.get('info', 'name')
+				button = wx.RadioButton(printMaterialPanel, -1, name, style=wx.RB_GROUP if len(self._print_material_options) == 0 else 0)
+				button.base_filename = base_filename
+				button.filename = filename
+				self._print_material_options.append(button)
+				if profile.getPreference('simpleModeMaterial') == base_filename:
+					button.SetValue(True)
+
+			if profile.getMachineSetting('gcode_flavor') == 'UltiGCode':
+				printMaterialPanel.Show(False)
+
+			self.printSupport = wx.CheckBox(self, -1, _("Print support structure"))
+
+			sizer = wx.GridBagSizer()
+			self.SetSizer(sizer)
+
+			sb = wx.StaticBox(printMaterialPanel, label=_("Select material for printing:"))
+			boxsizer = wx.StaticBoxSizer(sb, wx.VERTICAL)
+			for button in self._print_material_options:
+				boxsizer.Add(button)
+			printMaterialPanel.SetSizer(wx.BoxSizer(wx.VERTICAL))
+			printMaterialPanel.GetSizer().Add(boxsizer, flag=wx.EXPAND)
+			sizer.Add(printMaterialPanel, (0,0), flag=wx.EXPAND)
+
+			sb = wx.StaticBox(printTypePanel, label=_("Select a quickprint profile:"))
+			boxsizer = wx.StaticBoxSizer(sb, wx.VERTICAL)
+			for button in self._print_profile_options:
+				boxsizer.Add(button)
+			printTypePanel.SetSizer(wx.BoxSizer(wx.VERTICAL))
+			printTypePanel.GetSizer().Add(boxsizer, flag=wx.EXPAND)
+			sizer.Add(printTypePanel, (1,0), flag=wx.EXPAND)
+
+			sb = wx.StaticBox(self, label=_("Other:"))
+			boxsizer = wx.StaticBoxSizer(sb, wx.VERTICAL)
+			boxsizer.Add(self.printSupport)
+			sizer.Add(boxsizer, (2,0), flag=wx.EXPAND)
+
+			for button in self._print_profile_options:
+				button.Bind(wx.EVT_RADIOBUTTON, self._update)
+			for button in self._print_material_options:
+				button.Bind(wx.EVT_RADIOBUTTON, self._update)
+
+			self.printSupport.Bind(wx.EVT_CHECKBOX, self._update)
 
 	def _update(self, e):
 		for button in self._print_profile_options:
@@ -89,6 +188,10 @@ class simpleModePanel(wx.Panel):
 		for button in self._print_material_options:
 			if button.GetValue():
 				profile.putPreference('simpleModeMaterial', button.base_filename)
+		#if profile.getMachineSetting('machine_type') == 'BCN3DSigma':
+			#for button in self._print_extruder_options:
+			#	if button.GetValue():
+			#		profile.putPreference('simpleModeExtruder', button.base_filename)
 		self._callback()
 
 	def getSettingOverrides(self):
@@ -121,4 +224,4 @@ class simpleModePanel(wx.Panel):
 		return settings
 
 	def updateProfileToControls(self):
-		pass
+			pass

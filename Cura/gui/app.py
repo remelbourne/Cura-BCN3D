@@ -39,7 +39,7 @@ class CuraApp(wx.App):
 			portNr = 0xCA00 + sum(map(ord, version.getVersion(False)))
 			if len(files) > 0:
 				try:
-					other_hwnd = windll.user32.FindWindowA(None, ctypes.c_char_p('Cura - ' + version.getVersion()))
+					other_hwnd = windll.user32.FindWindowA(None, ctypes.c_char_p('Cura-BCN3D ' + version.getVersion()))
 					if other_hwnd != 0:
 						sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 						sock.sendto('\0'.join(files), ("127.0.0.1", portNr))

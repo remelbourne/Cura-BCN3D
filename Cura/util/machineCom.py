@@ -177,10 +177,10 @@ class MachineCom(object):
     STATE_ERROR = 9
     STATE_CLOSED_WITH_ERROR = 10
 
+
     def __init__(self, port=None, baudrate=None, callbackObject=None):
         if port is None:
             port = profile.getMachineSetting('serial_port')
-            print port
         if baudrate is None:
             if profile.getMachineSetting('serial_baud') == 'AUTO':
                 baudrate = 0
@@ -309,28 +309,16 @@ class MachineCom(object):
 
     def _monitor(self):
         # Open the serial port.
-        print self._port
         if self._port == 'AUTO':
             self._changeState(self.STATE_DETECT_SERIAL)
             programmer = stk500v2.Stk500v2()
-            print 'cuando no esta conectado'
-            print 'entramos o no?'
-            print self._serial
-            print self._baudrate
             if not programmer.isConnected():
                 for self._port in serialList(False):
-                    print 'es bueno que entremos aqui'
                     try:
                         self._log("Connecting to: %s (programmer)" % (self._port))
                         programmer.connect(self._port)
-                        print self._port
-                        print self._serial
                         self._serial = programmer.leaveISP()
-                        print 'hemos llegado despues del serial?'
                         profile.putMachineSetting('serial_port_auto', self._port)
-                        print 'antes del break'
-                        print self._serial
-                        print programmer.isConnected()
                         break
                     except ispBase.IspError as (e):
                         self._log("Error while connecting to %s: %s" % (self._port, str(e)))
@@ -357,7 +345,6 @@ class MachineCom(object):
                 self._log(
                     "Unexpected error while connecting to serial port: %s %s" % (self._port, getExceptionString()))
         if self._serial is None:
-            print 'entramos en el baudrate'
             baudrate = self._baudrate
             if baudrate == 0:
                 baudrate = self._baudrateDetectList.pop(0)
@@ -381,7 +368,6 @@ class MachineCom(object):
 
         # Start monitoring the serial port.
         if self._state == self.STATE_CONNECTING:
-            print 'hemos entrado?'
             timeout = time.time() + 15
         else:
             timeout = time.time() + 5
@@ -389,7 +375,6 @@ class MachineCom(object):
         while True:
             line = self._readline()
             if line is None:
-                print 'espero que aqui no hayamos entrado'
                 break
 
             # No matter the state, if we see an fatal error, goto the error state and store the error for reference.
@@ -478,7 +463,9 @@ class MachineCom(object):
                         self._sendCommand("M999")
                         self._serial.timeout = 2
                         profile.putMachineSetting('serial_baud_auto', self._serial.baudrate)
+                        print self._serial
                         self._changeState(self.STATE_OPERATIONAL)
+                        break
                 else:
                     self._testingBaudrate = False
             elif self._state == self.STATE_CONNECTING:
@@ -668,6 +655,15 @@ class MachineCom(object):
     def setFeedrateModifier(self, type, value):
         self._feedRateModifier[type] = value
 
+    def readFirstLine(self):
+        if self.isOperational():
+            ser = self._serial
+            print ser.baudrate
+            print ser.port
+
+            while 1:
+                bytes = ser.write
+                print bytes
 
 def getExceptionString():
     locationInfo = traceback.extract_tb(sys.exc_info()[2])[0]

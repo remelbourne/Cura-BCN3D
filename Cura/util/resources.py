@@ -49,6 +49,15 @@ def getDefaultMachineProfiles():
 	path = os.path.normpath(os.path.join(resourceBasePath, 'machine_profiles', '*.ini'))
 	return glob.glob(path)
 
+#def getSimpleModeExtruders():
+#	path = os.path.normpath(os.path.join(resourceBasePath, 'quickprint', 'extruders', '*.ini'))
+#	user_path = os.path.normpath(os.path.expanduser(os.path.join('~', '.Cura', 'quickprint', 'extruders')))
+#	if os.path.isdir(user_path):
+#		files = sorted(glob.glob(os.path.join(user_path, '*.ini')))
+#		if len(files) > 0:
+#			return files
+#	return sorted(glob.glob(path))
+
 def getSimpleModeProfiles():
 	path = os.path.normpath(os.path.join(resourceBasePath, 'quickprint', 'profiles', '*.ini'))
 	user_path = os.path.normpath(os.path.expanduser(os.path.join('~', '.Cura', 'quickprint', 'profiles')))
@@ -92,6 +101,6 @@ def getLanguageOptions():
 		# ['ko', 'Korean'],
 		# ['zh', 'Chinese'],
 		# ['nl', 'Nederlands'],
-		#ge['es', 'Spanish'],
+		#['es', 'Spanish'],
 		# ['po', 'Polish'],
 	]

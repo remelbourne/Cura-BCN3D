@@ -29,8 +29,6 @@ class newVersionDialog(wx.Dialog):
 		s.Add(wx.StaticText(p, -1, '* Added settings for BCN3D Technologies printers'))
 		s.Add(wx.StaticText(p, -1, '* Changed some parts of the interface to give a better user experience'))
 		s.Add(wx.StaticText(p, -1, '* BCN3D Sigma is automatically set to double extrusion'))
-		s.Add(wx.StaticText(p, -1, '* Created a new tab in Cura to update the firmware in the machine'))
-		s.Add(wx.StaticText(p, -1, '* Created a new tab in Cura to be able to choose preset configurations/profiles'))
 
 		self.hasBCN3DSigma = None
 		self.hasBCN3DPlus = None
