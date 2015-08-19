@@ -20,6 +20,8 @@ except:
     from xml.etree import ElementTree
 
 from Cura.util import resources
+import profile
+
 
 def getVersion(getGitVersion = True):
     gitPath = os.path.abspath(os.path.join(os.path.split(os.path.abspath(__file__))[0], "../.."))
@@ -64,53 +66,102 @@ def isDevVersion():
     hgPath  = os.path.abspath(os.path.join(os.path.split(os.path.abspath(__file__))[0], "../../.hg"))
     return os.path.exists(gitPath) or os.path.exists(hgPath)
 
-# Get the latest version of firmware which is found in the bcn3d github website
-def getLatestVersion():
-    base_url = 'https://github.com/BCN3D/BCN3D-Firmware/archive/'
+##############################################
+def getLatestFHVersion(ver):
 
-    url = 'https://github.com/BCN3D/BCN3D-Firmware/releases/'
-    urlContent = urllib2.urlopen(url)
-    data = urlContent.read()
-
-    versionMatch = re.search(r'([\d.]+)\.(zip)', data)
-
-    if not versionMatch:
-        sys.exit('Couldn\'t find the Latest Version!')
-
-    version = versionMatch.group(1)
-    print 'The latest firmware version available is: ',version
-    mychoice = wx.MessageBox(_("The latest firmware version available is: " + version + "\nWant to download the new version?"), _("New Version"), wx.YES_NO)
-
-    if mychoice == wx.NO:
-        print 'Hemos escogido no seguir'
+    #Go to a different url depending on the printer to get the desired firmware
+    if profile.getMachineSetting('machine_type') == 'BCN3DSigma':
+        base_url = 'https://github.com/remelbourne/BCN3DSigma-Firmware-Updates/archive/'
+        url = 'https://github.com/remelbourne/BCN3DSigma-Firmware-Updates/releases/'
+        urlContent = urllib2.urlopen(url)
+        data = urlContent.read()
+    elif profile.getMachineSetting('machine_type') == 'BCN3DPlus':
+        wx.MessageBox(_("Couldn\'t find the latest version!"), _("Firmware Information"), wx.OK)
         return None
-    else:
-        isDownloaded = downloadLatestVersion(version, base_url)
-        if isDownloaded == None:
-            return None
-        elif isDownloaded != None:
-            return not None
+        #base_url = 'https://github.com/remelbourne/BCN3DSigma-Firmware-Updates/archive/'
+        #url = 'https://github.com/remelbourne/BCN3DSigma-Firmware-Updates/releases/'
+        #urlContent = urllib2.urlopen(url)
+        #data = urlContent.read()
+    elif profile.getMachineSetting('machine_type') == 'BCN3DR':
+        wx.MessageBox(_("Couldn\'t find the latest version!"), _("Firmware Information"), wx.OK)
+        return None
+        #base_url = 'https://github.com/remelbourne/BCN3DSigma-Firmware-Updates/archive/'
+        #url = 'https://github.com/remelbourne/BCN3DSigma-Firmware-Updates/releases/'
+        #urlContent = urllib2.urlopen(url)
+        #data = urlContent.read()
 
-def downloadLatestVersion(version,base_url):
+    first_v = ver[:2]
+    second_v = ver[:2]
+
+    if first_v == '01':
+        versionMatch = re.search(r'(01-[\d.]+)\.(zip)', data)
+        if not versionMatch:
+            sys.exit('Couldn\'t find the Latest Version!')
+        version = versionMatch.group(1)
+        print 'The latest firmware version available is:',version
+
+        if ver == version:
+            wx.MessageBox(_("Your firmware is already up to date!"), _("Firmware Information"), wx.OK)
+            return None
+
+        elif ver != version:
+            mychoice = wx.MessageBox(_("Your firmware version is: " + ver + "\nThe latest firmware version available is: " + version + "\nWant to download the new version?"), _("New Version"), wx.YES_NO)
+
+            if mychoice == wx.NO:
+                print 'Hemos escogido no seguir'
+                return None
+            else:
+                isDownloaded = downloadLatestFHVersion(version, base_url)
+                if isDownloaded == None:
+                    return None
+                elif isDownloaded != None:
+                    return not None
+
+    elif second_v == '02':
+        versionMatch = re.search(r'(02-[\d.]+)\.(zip)', data)
+        if not versionMatch:
+            sys.exit('Couldn\'t find the Latest Version!')
+        version = versionMatch.group(1)
+        print 'The latest firmware version available is:',version
+
+        if ver == version:
+            wx.MessageBox(_("Your firmware is already up to date!"), _("Firmware Information"), wx.OK)
+            return None
+
+        elif ver != version:
+            mychoice = wx.MessageBox(_("Your firmware version is: " + ver + "\nThe latest firmware version available is: " + version + "\nWant to download the new version?"), _("New Version"), wx.YES_NO)
+
+            if mychoice == wx.NO:
+                print 'Hemos escogido no seguir'
+                return None
+            else:
+                isDownloaded = downloadLatestFHVersion(version, base_url)
+                if isDownloaded == None:
+                    return None
+                elif isDownloaded != None:
+                    return not None
+
+def downloadLatestFHVersion(version,base_url):
 
     version_url = base_url + version + '.zip'
+    print version_url
 
     if sys.platform.startswith('win'):
         os.chdir(os.path.expanduser('~') + '\Documents')
-        dir = 'Cura-BCN3D'
+        dir = 'BCN3DSigma'
         if not os.path.exists(dir):
             home = os.path.expanduser('~')
             os.chdir(home + '\Documents')
             os.mkdir(dir)
     elif sys.platform.startswith('darwin'):
         os.chdir(os.path.expanduser('~') + '/Documents')
-        dir = 'Cura-BCN3D'
+        dir = 'BCN3DSigma'
         if not os.path.exists(dir):
             home = os.path.expanduser('~')
             os.chdir(home + '/Documents')
             os.mkdir(dir)
 
-    myVar = firmwareAlreadyInstalled(version)
+    myVar = firmwareHAlreadyInstalled(version)
 
     if myVar != None:
         print 'Downloading Version... ',version
@@ -118,7 +169,7 @@ def downloadLatestVersion(version,base_url):
         print 'Done downloading!'
 
         print 'Inflating files...'
-        os.chdir('Cura-BCN3D')
+        os.chdir('BCN3DSigma')
         with zipfile.ZipFile(version + '.zip') as z:
             z.extractall()
         print 'Done unziping the files!'
@@ -127,12 +178,12 @@ def downloadLatestVersion(version,base_url):
             os.chdir(os.path.expanduser('~') + '\Documents')
         elif sys.platform == 'darwin':
             os.chdir(os.path.expanduser('~') + '/Documents')
-        return not None
+        return version
 
     elif myVar == None:
         return None
 
-def firmwareAlreadyInstalled(version):
+def firmwareHAlreadyInstalled(version):
 
     if sys.platform == 'Windows':
         os.path.expanduser('~') + '\Documents\Versions'
@@ -140,15 +191,17 @@ def firmwareAlreadyInstalled(version):
         os.chdir(os.path.expanduser('~') + '/Documents')
 
     fname = version + '.zip'
-    yes = fname in os.listdir('Cura-BCN3D')
+    yes = fname in os.listdir('BCN3DSigma')
 
     if yes == True:
         print 'Repositories up to date!'
-        wx.MessageBox(_("Repositories up to date!"), _("Repository Information"), wx.OK)
+        wx.MessageBox(_("You already have the newest version downloaded. If you wish to reinstall \nthe firmware please go to Machine -> Install custom firmware \nand find the path to the file, which should be in Documents/BCN3DSigma"), _("Repository Information"), wx.OK)
         return None
     else:
         return not None
-###### Until here what we have written
+
+
+#######################################################################
 
 def checkForNewerVersion():
     if isDevVersion():

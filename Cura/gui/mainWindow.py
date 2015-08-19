@@ -499,11 +499,8 @@ class mainWindow(wx.Frame):
         i = self.machineMenu.Append(-1, _("Install custom firmware..."))
         self.Bind(wx.EVT_MENU, self.OnCustomFirmware, i)
 
-        self.updateFirmwareInstallMenu = self.machineMenu.Append(-1, _("Check for firmware updates..."))
-        self.Bind(wx.EVT_MENU, self.OnUpdateFirmware, self.updateFirmwareInstallMenu)
-
-        #self.updateHardwareFirmwareInstallMenu = self.machineMenu.Append(-1, _("Check for firmware updates..."))
-        #self.Bind(wx.EVT_MENU, self.OnUpdateHardwareFirmware, self.updateHardwareFirmwareInstallMenu)
+        self.updateHardwareFirmwareInstallMenu = self.machineMenu.Append(-1, _("Check for firmware updates..."))
+        self.Bind(wx.EVT_MENU, self.OnUpdateHardwareFirmware, self.updateHardwareFirmwareInstallMenu)
 
     def OnLoadProfile(self, e):
         dlg=wx.FileDialog(self, _("Select profile file to load"), os.path.split(profile.getPreference('lastFile'))[0], style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
@@ -600,37 +597,9 @@ class mainWindow(wx.Frame):
             #For some reason my Ubuntu 10.10 crashes here.
             firmwareInstall.InstallFirmware(self, filename)
 
-    def OnUpdateFirmware(self,e):
-
-        if profile.getMachineSetting('machine_type') != 'BCN3DSigma':
-            wx.MessageBox(_("I am sorry, but Cura does not process firmware updates for your machine configuration."), _("Firmware update"), wx.OK | wx.ICON_ERROR)
-            return
-        elif profile.getMachineSetting('machine_type') == 'BCN3DSigma':
-            myVersion = version.getLatestVersion()
-
-            if myVersion == None:
-                return
-
-            if version.downloadLatestVersion != None:
-                os.chdir('Cura-BCN3D')
-                dlg=wx.FileDialog(self, _("Open firmware to upload"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
-                dlg.SetWildcard("HEX file (*.hex)|*.hex;*.HEX")
-                if dlg.ShowModal() == wx.ID_OK:
-                    filename = dlg.GetPath()
-                    dlg.Destroy()
-                    if not(os.path.exists(filename)):
-                        return
-                    #For some reason my Ubuntu 10.10 crashes here.
-                    firmwareInstall.InstallFirmware(self, filename)
-                if  dlg != wx.FD_OPEN:
-                    os.chdir(os.path.expanduser('~') + '\Documents')
-                    return
-                else:
-                    wx.MessageBox(_("You are running the latest version of firmware!"), _("Awesome!"), wx.ICON_INFORMATION)
-
     def OnUpdateHardwareFirmware(self, e):
         configFirmware.ConfigFirmware()
-
+        return
 
     def OnAddNewMachine(self, e):
         self.Hide()

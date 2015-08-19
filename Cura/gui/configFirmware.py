@@ -306,6 +306,7 @@ class FirstConnectPrinterSigma(InfoPage):
         self.AddText(_('Press on the following button to know your current \nfirmware version and check whether there are new releases. \nThis might take a few seconds.'))
         getFirstLine = self.AddButton(_("Get firmware version"))
         getFirstLine.Bind(wx.EVT_BUTTON, self.OnGetFirstLine)
+        self.AddSeperator()
 
 
     def __del__(self):
@@ -313,7 +314,7 @@ class FirstConnectPrinterSigma(InfoPage):
             self.comm.close()
 
     def AllowNext(self):
-        return False
+        return True
 
     def OnCheckClick(self, e=None):
         self.errorLogButton.Show(False)
@@ -442,7 +443,9 @@ class FirstConnectPrinterSigma(InfoPage):
     def OnGetFirstLine(self, e = None):
         if self.comm.isOperational():
             self.comm.readFirstLine()
+            self.comm.getFirmwareHardware()
 
+#### Updater for BCN3D Plus #####
 class decideToUpdatePlus(InfoPage):
     def __init__(self, parent):
         super(decideToUpdatePlus, self).__init__(parent, _('Upgrade BCN3D + Firmware'))
@@ -485,13 +488,16 @@ class FirstConnectPrinterPlus(InfoPage):
         self.AddText(_('Press on the following button to know your current \nfirmware version and check whether there are new releases. \nThis might take a few seconds.'))
         getFirstLine = self.AddButton(_("Get firmware version"))
         getFirstLine.Bind(wx.EVT_BUTTON, self.OnGetFirstLine)
+        self.AddSeperator()
+
 
     def __del__(self):
         if self.comm is not None:
             self.comm.close()
 
     def AllowNext(self):
-        return False
+        return True
+
 
     def OnCheckClick(self, e=None):
         self.errorLogButton.Show(False)
@@ -503,7 +509,7 @@ class FirstConnectPrinterPlus(InfoPage):
             return
         self.infoBox.SetBusy(_("Connecting to machine."))
         self.commState.SetBitmap(self.unknownBitmap)
-        self.comm = machineCom.MachineCom(baudrate=250000, callbackObject=self)
+        self.comm = machineCom.MachineCom(callbackObject=self)
         self.checkupState = 0
 
     def OnErrorLog(self, e):
@@ -517,7 +523,7 @@ class FirstConnectPrinterPlus(InfoPage):
             return
         if self.comm.isOperational():
             wx.CallAfter(self.commState.SetBitmap, self.checkBitmap)
-            wx.CallAfter(self.machineState.SetLabel, _("Communication State: %s") % (self.comm.getStateString()))
+            wx.CallAfter(self.machineState.SetLabel, _("%s") % (self.comm.getStateString()))
             wx.CallAfter(self.infoBox.SetReadyIndicator)
         elif self.comm.isError():
             wx.CallAfter(self.commState.SetBitmap, self.crossBitmap)
@@ -525,6 +531,10 @@ class FirstConnectPrinterPlus(InfoPage):
             wx.CallAfter(self.machineState.SetLabel, '%s' % (self.comm.getErrorString()))
             wx.CallAfter(self.errorLogButton.Show, True)
             wx.CallAfter(self.Layout)
+        elif self.comm.isClosed():
+            wx.CallAfter(self.commState.SetBitmap, self.crossBitmap)
+            wx.CallAfter(self.machineState.SetLabel, _("Failed to establish connection with the printer."))
+            wx.CallAfter(self.infoBox.SetErrorIndicator)
         else:
             wx.CallAfter(self.machineState.SetLabel, _("Communication State: %s") % (self.comm.getStateString()))
 
@@ -614,8 +624,12 @@ class FirstConnectPrinterPlus(InfoPage):
         pass
 
     def OnGetFirstLine(self, e = None):
-        return
+        if self.comm.isOperational():
+            self.comm.readFirstLine()
+            self.comm.getFirmwareHardware()
 
+
+##### Updater for BCN3D R ######
 class decideToUpdateR(InfoPage):
     def __init__(self, parent):
         super(decideToUpdateR, self).__init__(parent, _('Upgrade BCN3D R Firmware'))
@@ -658,13 +672,15 @@ class FirstConnectPrinterR(InfoPage):
         self.AddText(_('Press on the following button to know your current \nfirmware version and check whether there are new releases. \nThis might take a few seconds.'))
         getFirstLine = self.AddButton(_("Get firmware version"))
         getFirstLine.Bind(wx.EVT_BUTTON, self.OnGetFirstLine)
+        self.AddSeperator()
+
 
     def __del__(self):
         if self.comm is not None:
             self.comm.close()
 
     def AllowNext(self):
-        return False
+        return True
 
     def OnCheckClick(self, e=None):
         self.errorLogButton.Show(False)
@@ -676,7 +692,7 @@ class FirstConnectPrinterR(InfoPage):
             return
         self.infoBox.SetBusy(_("Connecting to machine."))
         self.commState.SetBitmap(self.unknownBitmap)
-        self.comm = machineCom.MachineCom(baudrate=250000, callbackObject=self)
+        self.comm = machineCom.MachineCom(callbackObject=self)
         self.checkupState = 0
 
     def OnErrorLog(self, e):
@@ -690,7 +706,7 @@ class FirstConnectPrinterR(InfoPage):
             return
         if self.comm.isOperational():
             wx.CallAfter(self.commState.SetBitmap, self.checkBitmap)
-            wx.CallAfter(self.machineState.SetLabel, _("Communication State: %s") % (self.comm.getStateString()))
+            wx.CallAfter(self.machineState.SetLabel, _("%s") % (self.comm.getStateString()))
             wx.CallAfter(self.infoBox.SetReadyIndicator)
         elif self.comm.isError():
             wx.CallAfter(self.commState.SetBitmap, self.crossBitmap)
@@ -698,6 +714,10 @@ class FirstConnectPrinterR(InfoPage):
             wx.CallAfter(self.machineState.SetLabel, '%s' % (self.comm.getErrorString()))
             wx.CallAfter(self.errorLogButton.Show, True)
             wx.CallAfter(self.Layout)
+        elif self.comm.isClosed():
+            wx.CallAfter(self.commState.SetBitmap, self.crossBitmap)
+            wx.CallAfter(self.machineState.SetLabel, _("Failed to establish connection with the printer."))
+            wx.CallAfter(self.infoBox.SetErrorIndicator)
         else:
             wx.CallAfter(self.machineState.SetLabel, _("Communication State: %s") % (self.comm.getStateString()))
 
@@ -787,8 +807,13 @@ class FirstConnectPrinterR(InfoPage):
         pass
 
     def OnGetFirstLine(self, e = None):
-        return
+        if self.comm.isOperational():
+            self.comm.readFirstLine()
+            self.comm.getFirmwareHardware()
 
+
+
+#Where you edit the pages and how they work
 class ConfigFirmware(wx.wizard.Wizard):
     def __init__(self, addNew = False):
         super(ConfigFirmware, self).__init__(None, -1, _("Machine Firmware Updater"))
@@ -800,6 +825,7 @@ class ConfigFirmware(wx.wizard.Wizard):
         self.Bind(wx.wizard.EVT_WIZARD_PAGE_CHANGED, self.OnPageChanged)
         self.Bind(wx.wizard.EVT_WIZARD_PAGE_CHANGING, self.OnPageChanging)
         self.Bind(wx.wizard.EVT_WIZARD_CANCEL, self.OnCancel)
+        self.Bind(wx.wizard.EVT_WIZARD_FINISHED, self.OnFinish)
 
 
         self.machineSelectPage = MachineSelectPage(self)
@@ -811,6 +837,7 @@ class ConfigFirmware(wx.wizard.Wizard):
         self.firstconnectprinterr = FirstConnectPrinterR(self)
 
 
+
         if profile.getMachineSetting('machine_type') == 'BCN3DSigma':
             wx.wizard.WizardPageSimple.Chain(self.machineSelectPage, self.decidetoupdatesigma)
             wx.wizard.WizardPageSimple.Chain(self.decidetoupdatesigma, self.firstconnectprintersigma)
@@ -820,8 +847,6 @@ class ConfigFirmware(wx.wizard.Wizard):
         if profile.getMachineSetting('machine_type') == 'BCN3DR':
             wx.wizard.WizardPageSimple.Chain(self.machineSelectPage, self.decidetoupdater)
             wx.wizard.WizardPageSimple.Chain(self.decidetoupdater, self.firstconnectprinterr)
-
-        #wx.wizard.WizardPageSimple.Chain(self.sigmafirmwareupdatepage, self.getport)
 
 
         self.FitToPage(self.machineSelectPage)
@@ -844,7 +869,11 @@ class ConfigFirmware(wx.wizard.Wizard):
             self.FindWindowById(wx.ID_BACKWARD).Disable()
 
     def OnCancel(self, e):
-        profile.setActiveMachine(self._old_machine_index)
+        self.Destroy()
+        
+
+    def OnFinish(self, e):
+        self.Destroy()
 
 
 

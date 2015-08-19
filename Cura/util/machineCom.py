@@ -14,14 +14,19 @@ import traceback
 import threading
 import platform
 import Queue as queue
+import wx
+import shutil
 
 import serial
 
 from Cura.avr_isp import stk500v2
 from Cura.avr_isp import ispBase
+from Cura.avr_isp import intelHex
 
+from Cura.gui.util import taskbar
 from Cura.util import profile
 from Cura.util import version
+
 
 try:
     import _winreg
@@ -657,16 +662,180 @@ class MachineCom(object):
 
     def readFirstLine(self):
         if self.isOperational():
+            print self._port
+            port = self._port
             ser = self._serial
-            print ser.baudrate
-            print ser.port
+            ser.close()
+            ser = serial.Serial(
+            port=port,\
+            baudrate=250000,\
+            parity=serial.PARITY_NONE,\
+            stopbits=serial.STOPBITS_ONE,\
+            bytesize=serial.EIGHTBITS,\
+                timeout=2)
 
-            while 1:
-                bytes = ser.write
-                print bytes
+            print ser
+            print("connected to: " + ser.portstr)
+
+            line = []
+
+            self._version = ser.read(8)
+            print self._version
+
+            ser.close()
+
+
+    def getFirmwareHardware(self):
+        ver = self._version
+
+        if profile.getMachineSetting('machine_type') != 'BCN3DSigma' and profile.getMachineSetting('machine_type') != 'BCN3DPlus' and profile.getMachineSetting('machine_type') != 'BCN3DR':
+            wx.MessageBox(_("I am sorry, but Cura does not process firmware updates for your machine configuration."), _("Firmware update"), wx.OK | wx.ICON_ERROR)
+            return
+        elif profile.getMachineSetting('machine_type') == 'BCN3DSigma' or profile.getMachineSetting('machine_type') == 'BCN3DPlus' or profile.getMachineSetting('machine_type') == 'BCN3DR':
+            myVersion = version.getLatestFHVersion(ver)
+
+            if myVersion == None:
+                return
+
+            if version.downloadLatestFHVersion != None:
+                dlg=wx.FileDialog(None, _("Open firmware to upload"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
+                dlg.SetWildcard("HEX file (*.hex)|*.hex;*.HEX")
+                if dlg.ShowModal() == wx.ID_OK:
+                    filename = dlg.GetPath()
+                    dlg.Destroy()
+                    if not(os.path.exists(filename)):
+                        return
+                    #For some reason my Ubuntu 10.10 crashes here.
+                    InstallFirmware(self, filename)
+                    #In case we want to delete the file after it has been installed
+                    #os.chdir(os.path.expanduser('~') + '\Documents\BCN3DSigma')
+                    #path = os.getcwd()
+                    #shutil.rmtree(path)
+                if dlg != wx.FD_OPEN:
+                    os.chdir(os.path.expanduser('~') + '\Documents')
+                    return
+                else:
+                    wx.MessageBox(_("You are running the latest version of firmware!"), _("Awesome!"), wx.ICON_INFORMATION)
+
 
 def getExceptionString():
     locationInfo = traceback.extract_tb(sys.exc_info()[2])[0]
     return "%s: '%s' @ %s:%s:%d" % (
     str(sys.exc_info()[0].__name__), str(sys.exc_info()[1]), os.path.basename(locationInfo[0]), locationInfo[2],
     locationInfo[1])
+
+
+class InstallFirmware(wx.Dialog):
+    def __init__(self, parent = None, filename = None, port = None, machineIndex = None):
+        super(InstallFirmware, self).__init__(None, title="Firmware install for %s" % (profile.getMachineSetting('machine_name', machineIndex).title()), size=(250, 100))
+        if port is None:
+            port = profile.getMachineSetting('serial_port')
+        if filename is None:
+            self._default_firmware = True
+        else:
+            self._default_firmware = False
+        if filename is None:
+            wx.MessageBox(_("I am sorry, but Cura does not ship with a default firmware for your machine configuration."), _("Firmware update"), wx.OK | wx.ICON_ERROR)
+            self.Destroy()
+            return
+        self._machine_type = profile.getMachineSetting('machine_type', machineIndex)
+        if self._machine_type == 'reprap':
+            wx.MessageBox(_("Cura only supports firmware updates for ATMega2560 based hardware.\nSo updating your RepRap with Cura might or might not work."), _("Firmware update"), wx.OK | wx.ICON_INFORMATION)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.progressLabel = wx.StaticText(self, -1, 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\nX\nX')
+        sizer.Add(self.progressLabel, 0, flag=wx.ALIGN_CENTER|wx.ALL, border=5)
+        self.progressGauge = wx.Gauge(self, -1)
+        sizer.Add(self.progressGauge, 0, flag=wx.EXPAND)
+        self.okButton = wx.Button(self, -1, _("OK"))
+        self.okButton.Disable()
+        self.okButton.Bind(wx.EVT_BUTTON, self.OnOk)
+        sizer.Add(self.okButton, 0, flag=wx.ALIGN_CENTER|wx.ALL, border=5)
+        self.SetSizer(sizer)
+
+        self.filename = filename
+        self.port = port
+
+        self.Layout()
+        self.Fit()
+
+        self.thread = threading.Thread(target=self.OnRun)
+        self.thread.daemon = True
+        self.thread.start()
+
+        self.ShowModal()
+        self.Destroy()
+        self.OnClose()
+        return
+
+    def OnRun(self):
+        wx.CallAfter(self.updateLabel, _("Reading firmware..."))
+        hexFile = intelHex.readHex(self.filename)
+        wx.CallAfter(self.updateLabel, _("Connecting to machine..."))
+        programmer = stk500v2.Stk500v2()
+        programmer.progressCallback = self.OnProgress
+        if self.port == 'AUTO':
+            wx.CallAfter(self.updateLabel, _("Please connect the printer to\nyour computer with the USB cable."))
+            while not programmer.isConnected():
+                for self.port in serialList(False):
+                    try:
+                        programmer.connect(self.port)
+                        break
+                    except ispBase.IspError:
+                        programmer.close()
+                time.sleep(1)
+                if not self:
+                    #Window destroyed
+                    return
+        else:
+            try:
+                programmer.connect(self.port)
+            except ispBase.IspError:
+                programmer.close()
+
+        if not programmer.isConnected():
+            wx.MessageBox(_("Failed to find machine for firmware upgrade\nIs your machine connected to the PC?"),
+                          _("Firmware update"), wx.OK | wx.ICON_ERROR)
+            wx.CallAfter(self.Close)
+            return
+
+        if self._default_firmware:
+            if self._machine_type == 'BCN3DSigma':
+                if programmer.hasChecksumFunction():
+                    wx.CallAfter(self.updateLabel, _("Failed to install firmware:\nThis firmware is not compatible with this machine.\nTrying to install UMO firmware on an UM2 or UMO+?"))
+                    programmer.close()
+                    wx.CallAfter(self.okButton.Enable)
+                    return
+            if self._machine_type == 'ultimaker' or self._machine_type == 'ultimaker2':
+                if not programmer.hasChecksumFunction():
+                    wx.CallAfter(self.updateLabel, _("Failed to install firmware:\nThis firmware is not compatible with this machine.\nTrying to install UM2 or UMO+ firmware on an UMO?"))
+                    programmer.close()
+                    wx.CallAfter(self.okButton.Enable)
+                    return
+
+        wx.CallAfter(self.updateLabel, _("Uploading firmware..."))
+        try:
+            programmer.programChip(hexFile)
+            wx.CallAfter(self.updateLabel, _("Done!\nInstalled firmware: %s") % (os.path.basename(self.filename)))
+        except ispBase.IspError as e:
+            wx.CallAfter(self.updateLabel, _("Failed to write firmware.\n") + str(e))
+
+        programmer.close()
+        wx.CallAfter(self.okButton.Enable)
+
+    def updateLabel(self, text):
+        self.progressLabel.SetLabel(text)
+        #self.Layout()
+
+    def OnProgress(self, value, max):
+        wx.CallAfter(self.progressGauge.SetRange, max)
+        wx.CallAfter(self.progressGauge.SetValue, value)
+        taskbar.setProgress(self.GetParent(), value, max)
+
+    def OnOk(self, e):
+        self.Close()
+        taskbar.setBusy(self.GetParent(), False)
+
+    def OnClose(self):
+        self.Destroy()
