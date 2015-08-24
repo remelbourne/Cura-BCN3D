@@ -297,13 +297,56 @@ G90                         ;absolute positioning
 """, str, 'alteration', 'alteration')
 
 ########################################################################################
-setting('startright.gcode', """;Sliced at: {day} {date} {time}
+setting('startleft.gcode', """T0
+M190 S{print_bed_temperature}
+M109 T0 S{print_temperature}
+M104 T1 S25
+;Sliced at: {day} {date} {time}
 ;Basic settings: Layer height: {layer_height} Walls: {wall_thickness} Fill: {fill_density}
 ;Print time: {print_time}
 ;Filament used: {filament_amount}m {filament_weight}g
 ;Filament cost: {filament_cost}
 ;M190 S{print_bed_temperature} ;Uncomment to add your own bed temperature line
-;M109 T1 S{print_temperature} ;Uncomment to add your own temperature line
+;M109 S{print_temperature} ;Uncomment to add your own temperature line
+G21        ;metric values
+G90        ;absolute positioning
+M82        ;set extruder to absolute mode
+M107       ;start with the fan off
+G28 X0 Y0  ;move X/Y to min endstops
+G28 Z0     ;move Z to min endstops
+G1 Z15.0 F{travel_speed} ;move the platform down 15mm
+G92 E0                  ;zero the extruded length
+G1 F200 E3              ;extrude 3mm of feed stock
+G92 E0                  ;zero the extruded length again
+G1 F{travel_speed}
+;Put printing message on LCD screen
+M117 Printing...
+""", str, 'alteration', 'alteration')
+#######################################################################################
+setting('endleft.gcode', """;End GCode
+M104 T0 S0                     ;extruder heater off
+M140 S0                     ;heated bed heater off (if you have it)
+G91                                    ;relative positioning
+G1 E-1 F300                            ;retract the filament a bit before lifting the nozzle, to release some of the pressure
+G1 Z+0.5 E-5 X-20 Y-20 F{travel_speed} ;move Z up a bit and retract filament even more
+G28 X0 Y0                              ;move X/Y to min endstops, so the head is out of the way
+M84                         ;steppers off
+G90                         ;absolute positioning
+;{profile_string}
+""", str, 'alteration', 'alteration')
+
+########################################################################################
+setting('startright.gcode', """T1
+M190 S{print_bed_temperature}
+M109 T1 S{print_temperature}
+M104 T0 S25
+;Sliced at: {day} {date} {time}
+;Basic settings: Layer height: {layer_height} Walls: {wall_thickness} Fill: {fill_density}
+;Print time: {print_time}
+;Filament used: {filament_amount}m {filament_weight}g
+;Filament cost: {filament_cost}
+;M190 S{print_bed_temperature} ;Uncomment to add your own bed temperature line
+;M109 S{print_temperature} ;Uncomment to add your own temperature line
 G21        ;metric values
 G90        ;absolute positioning
 M82        ;set extruder to absolute mode
@@ -374,108 +417,7 @@ M84                         ;steppers off
 G90                         ;absolute positioning
 ;{profile_string}
 """, str, 'alteration', 'alteration')
-#######################################################################################
-setting('start3.gcode', """;Sliced at: {day} {date} {time}
-;Basic settings: Layer height: {layer_height} Walls: {wall_thickness} Fill: {fill_density}
-;Print time: {print_time}
-;Filament used: {filament_amount}m {filament_weight}g
-;Filament cost: {filament_cost}
-;M190 S{print_bed_temperature} ;Uncomment to add your own bed temperature line
-;M104 S{print_temperature} ;Uncomment to add your own temperature line
-;M109 T1 S{print_temperature2} ;Uncomment to add your own temperature line
-;M109 T0 S{print_temperature} ;Uncomment to add your own temperature line
-G21        ;metric values
-G90        ;absolute positioning
-M107       ;start with the fan off
-G28 X0 Y0  ;move X/Y to min endstops
-G28 Z0     ;move Z to min endstops
-G1 Z15.0 F{travel_speed} ;move the platform down 15mm
-T2                      ;Switch to the 3rd extruder
-G92 E0                  ;zero the extruded length
-G1 F200 E10             ;extrude 10mm of feed stock
-G92 E0                  ;zero the extruded length again
-G1 F200 E-{retraction_dual_amount}
-T1                      ;Switch to the 2nd extruder
-G92 E0                  ;zero the extruded length
-G1 F200 E10             ;extrude 10mm of feed stock
-G92 E0                  ;zero the extruded length again
-G1 F200 E-{retraction_dual_amount}
-T0                      ;Switch to the first extruder
-G92 E0                  ;zero the extruded length
-G1 F200 E10             ;extrude 10mm of feed stock
-G92 E0                  ;zero the extruded length again
-G1 F{travel_speed}
-;Put printing message on LCD screen
-M117 Printing...
-""", str, 'alteration', 'alteration')
-#######################################################################################
-setting('end3.gcode', """;End GCode
-M104 T0 S0                     ;extruder heater off
-M104 T1 S0                     ;extruder heater off
-M104 T2 S0                     ;extruder heater off
-M140 S0                     ;heated bed heater off (if you have it)
-G91                                    ;relative positioning
-G1 E-1 F300                            ;retract the filament a bit before lifting the nozzle, to release some of the pressure
-G1 Z+0.5 E-5 X-20 Y-20 F{travel_speed} ;move Z up a bit and retract filament even more
-G28 X0 Y0                              ;move X/Y to min endstops, so the head is out of the way
-M84                         ;steppers off
-G90                         ;absolute positioning
-;{profile_string}
-""", str, 'alteration', 'alteration')
-setting('start4.gcode', """;Sliced at: {day} {date} {time}
-;Basic settings: Layer height: {layer_height} Walls: {wall_thickness} Fill: {fill_density}
-;Print time: {print_time}
-;Filament used: {filament_amount}m {filament_weight}g
-;Filament cost: {filament_cost}
-;M190 S{print_bed_temperature} ;Uncomment to add your own bed temperature line
-;M104 S{print_temperature} ;Uncomment to add your own temperature line
-;M109 T2 S{print_temperature2} ;Uncomment to add your own temperature line
-;M109 T1 S{print_temperature2} ;Uncomment to add your own temperature line
-;M109 T0 S{print_temperature} ;Uncomment to add your own temperature line
-G21        ;metric values
-G90        ;absolute positioning
-M107       ;start with the fan off
-G28 X0 Y0  ;move X/Y to min endstops
-G28 Z0     ;move Z to min endstops
-G1 Z15.0 F{travel_speed} ;move the platform down 15mm
-T3                      ;Switch to the 4th extruder
-G92 E0                  ;zero the extruded length
-G1 F200 E10             ;extrude 10mm of feed stock
-G92 E0                  ;zero the extruded length again
-G1 F200 E-{retraction_dual_amount}
-T2                      ;Switch to the 3rd extruder
-G92 E0                  ;zero the extruded length
-G1 F200 E10             ;extrude 10mm of feed stock
-G92 E0                  ;zero the extruded length again
-G1 F200 E-{retraction_dual_amount}
-T1                      ;Switch to the 2nd extruder
-G92 E0                  ;zero the extruded length
-G1 F200 E10             ;extrude 10mm of feed stock
-G92 E0                  ;zero the extruded length again
-G1 F200 E-{retraction_dual_amount}
-T0                      ;Switch to the first extruder
-G92 E0                  ;zero the extruded length
-G1 F200 E10             ;extrude 10mm of feed stock
-G92 E0                  ;zero the extruded length again
-G1 F{travel_speed}
-;Put printing message on LCD screen
-M117 Printing...
-""", str, 'alteration', 'alteration')
-#######################################################################################
-setting('end4.gcode', """;End GCode
-M104 T0 S0                     ;extruder heater off
-M104 T1 S0                     ;extruder heater off
-M104 T2 S0                     ;extruder heater off
-M104 T3 S0                     ;extruder heater off
-M140 S0                     ;heated bed heater off (if you have it)
-G91                                    ;relative positioning
-G1 E-1 F300                            ;retract the filament a bit before lifting the nozzle, to release some of the pressure
-G1 Z+0.5 E-5 X-20 Y-20 F{travel_speed} ;move Z up a bit and retract filament even more
-G28 X0 Y0                              ;move X/Y to min endstops, so the head is out of the way
-M84                         ;steppers off
-G90                         ;absolute positioning
-;{profile_string}
-""", str, 'alteration', 'alteration')
+
 #######################################################################################
 setting('support_start.gcode', '', str, 'alteration', 'alteration')
 setting('support_end.gcode', '', str, 'alteration', 'alteration')
@@ -493,7 +435,7 @@ setting('postSwitchExtruder.gcode', """;Switch between the current extruder and 
 setting('startMode', 'Simple', ['Simple', 'Normal'], 'preference', 'hidden')
 setting('simpleModeExtruder', '1_Left Extruder', str, 'preference', 'hidden')
 setting('simpleModeProfile', '3_normal', str, 'preference', 'hidden')
-setting('simpleModeMaterial', '2_pla', str, 'preference', 'hidden')
+setting('simpleModeMaterial', '1_pla', str, 'preference', 'hidden')
 setting('oneAtATime', 'True', bool, 'preference', 'hidden')
 setting('lastFile', os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'resources', 'example', 'BCN3DDraudi_support.stl')), str, 'preference', 'hidden')
 #setting('lastFirmwareFile', os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'resources', 'example', 'MarlinBCN3DSigma.hex')), str, 'preference', 'hidden')
@@ -1313,42 +1255,51 @@ def getAlterationFileContents(filename, extruderCount = 1):
 	if getMachineSetting('gcode_flavor') == 'UltiGCode':
 		if filename == 'end.gcode':
 			return 'M25 ;Stop reading from this point on.\n;CURA_PROFILE_STRING:%s\n' % (getProfileString())
+		if filename == 'endleft.gcode':
+			return 'M25 ;Stop reading from this point on.\n;CURA_PROFILE_STRING:%s\n' % (getProfileString())
+		if filename == 'endright.gcode':
+			return 'M25 ;Stop reading from this point on.\n;CURA_PROFILE_STRING:%s\n' % (getProfileString())
 		return ''
 	if filename == 'start.gcode':
-		gcode_parameter_key = 'S'
-		if getMachineSetting('gcode_flavor') == 'Mach3/LinuxCNC':
-			gcode_parameter_key = 'P'
-		if extruderCount > 1:
-			alterationContents = getAlterationFile("start%d.gcode" % (extruderCount))
-		#For the start code, hack the temperature and the steps per E value into it. So the temperature is reached before the start code extrusion.
-		#We also set our steps per E here, if configured.
-		eSteps = getMachineSettingFloat('steps_per_e')
-		if eSteps > 0:
-			prefix += 'M92 E%f\n' % (eSteps)
-		temp = getProfileSettingFloat('print_temperature')
-		bedTemp = 0
-		if getMachineSetting('has_heated_bed') == 'True':
-			bedTemp = getProfileSettingFloat('print_bed_temperature')
-
-		if bedTemp > 0 and not isTagIn('{print_bed_temperature}', alterationContents):
-			prefix += 'M190 %s%f\n' % (gcode_parameter_key, bedTemp)
-		if temp > 0 and not isTagIn('{print_temperature}', alterationContents):
+		if getPreference('startMode') == 'Simple' and getMachineSetting('machine_type') == 'BCN3DSigma' and getPreference('simpleModeExtruder') == '1_Left Extruder':
+			alterationContents = getAlterationFile("startleft.gcode")
+		elif getPreference('startMode') == 'Simple' and getMachineSetting('machine_type') == 'BCN3DSigma' and getPreference('simpleModeExtruder') == '2_Right Extruder':
+			alterationContents = getAlterationFile("startright.gcode")
+		else:
+			gcode_parameter_key = 'S'
+			if getMachineSetting('gcode_flavor') == 'Mach3/LinuxCNC':
+				gcode_parameter_key = 'P'
 			if extruderCount > 1:
-				for n in xrange(1, extruderCount):
-					t = temp
-					if n > 0 and getProfileSettingFloat('print_temperature%d' % (n+1)) > 0:
-						t = getProfileSettingFloat('print_temperature%d' % (n+1))
-					prefix += 'M104 T%d %s%f\n' % (n, gcode_parameter_key, t)
-				for n in xrange(0, extruderCount):
-					t = temp
-					if n > 0 and getProfileSettingFloat('print_temperature%d' % (n+1)) > 0:
-						t = getProfileSettingFloat('print_temperature%d' % (n+1))
-					prefix += 'M109 T%d %s%f\n' % (n, gcode_parameter_key, t)
-				prefix += 'T0\n'
-			else:
-				prefix += 'M109 %s%f\n' % (gcode_parameter_key, temp)
+				alterationContents = getAlterationFile("start%d.gcode" % (extruderCount))
+			#For the start code, hack the temperature and the steps per E value into it. So the temperature is reached before the start code extrusion.
+			#We also set our steps per E here, if configured.
+			eSteps = getMachineSettingFloat('steps_per_e')
+			if eSteps > 0:
+				prefix += 'M92 E%f\n' % (eSteps)
+			temp = getProfileSettingFloat('print_temperature')
+			bedTemp = 0
+			if getMachineSetting('has_heated_bed') == 'True':
+				bedTemp = getProfileSettingFloat('print_bed_temperature')
+
+			if bedTemp > 0 and not isTagIn('{print_bed_temperature}', alterationContents):
+				prefix += 'M190 %s%f\n' % (gcode_parameter_key, bedTemp)
+			if temp > 0 and not isTagIn('{print_temperature}', alterationContents):
+				if extruderCount > 1:
+					for n in xrange(1, extruderCount):
+						t = temp
+						if n > 0 and getProfileSettingFloat('print_temperature%d' % (n+1)) > 0:
+							t = getProfileSettingFloat('print_temperature%d' % (n+1))
+						prefix += 'M104 T%d %s%f\n' % (n, gcode_parameter_key, t)
+					for n in xrange(0, extruderCount):
+						t = temp
+						if n > 0 and getProfileSettingFloat('print_temperature%d' % (n+1)) > 0:
+							t = getProfileSettingFloat('print_temperature%d' % (n+1))
+						prefix += 'M109 T%d %s%f\n' % (n, gcode_parameter_key, t)
+					prefix += 'T0\n'
+				else:
+					prefix += 'M109 %s%f\n' % (gcode_parameter_key, temp)
 	elif filename == 'end.gcode':
-		if extruderCount > 1:
+		if extruderCount > 1: #poner un if que tenga que ver con el modo de impresion que estamos utilizando
 			alterationContents = getAlterationFile("end%d.gcode" % (extruderCount))
 		#Append the profile string to the end of the GCode, so we can load it from the GCode file later.
 		#postfix = ';CURA_PROFILE_STRING:%s\n' % (getProfileString())

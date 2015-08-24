@@ -870,7 +870,7 @@ class ConfigFirmware(wx.wizard.Wizard):
 
     def OnCancel(self, e):
         self.Destroy()
-        
+
 
     def OnFinish(self, e):
         self.Destroy()

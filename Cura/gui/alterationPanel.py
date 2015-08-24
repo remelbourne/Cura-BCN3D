@@ -8,9 +8,9 @@ from Cura.util import profile
 class alterationPanel(wx.Panel):
 	def __init__(self, parent, callback):
 		wx.Panel.__init__(self, parent,-1)
-
 		self.callback = callback
-		self.alterationFileList = ['start.gcode', 'end.gcode']#, 'nextobject.gcode', 'replace.csv
+
+		self.alterationFileList = ['start.gcode', 'end.gcode']#, 'nextobject.gcode', 'replace.csv'
 		if int(profile.getMachineSetting('extruder_amount')) > 1:
 			self.alterationFileList += ['preSwitchExtruder.gcode', 'postSwitchExtruder.gcode']
 			self.alterationFileList += ['start2.gcode', 'end2.gcode']
