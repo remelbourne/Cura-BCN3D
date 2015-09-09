@@ -417,6 +417,48 @@ M84                         ;steppers off
 G90                         ;absolute positioning
 ;{profile_string}
 """, str, 'alteration', 'alteration')
+###################################################################################
+setting('startrightdouble.gcode', """;Sliced at: {day} {date} {time}
+;Basic settings: Layer height: {layer_height} Walls: {wall_thickness} Fill: {fill_density}
+;Print time: {print_time}
+;Filament used: {filament_amount}m {filament_weight}g
+;Filament cost: {filament_cost}
+;M190 S{print_bed_temperature} ;Uncomment to add your own bed temperature line
+;M104 S{print_temperature} ;Uncomment to add your own temperature line
+;M109 T1 S{print_temperature2} ;Uncomment to add your own temperature line
+;M109 T0 S{print_temperature} ;Uncomment to add your own temperature line
+G21        ;metric values
+G90        ;absolute positioning
+M107       ;start with the fan off
+G28 X0 Y0  ;move X/Y to min endstops
+G28 Z0     ;move Z to min endstops
+G1 Z15.0 F{travel_speed} ;move the platform down 15mm
+T0                      ;Switch to the first extruder
+G92 E0                  ;zero the extruded length
+G1 F200 E10             ;extrude 10mm of feed stock
+G92 E0                  ;zero the extruded length again
+G1 F200 E-{retraction_dual_amount}
+T1                      ;Switch to the 2nd extruder
+G92 E0                  ;zero the extruded length
+G1 F200 E10             ;extrude 10mm of feed stock
+G92 E0                  ;zero the extruded length again
+G1 F{travel_speed}
+;Put printing message on LCD screen
+M117 Printing...
+""", str, 'alteration', 'alteration')
+#######################################################################################
+setting('endrightdouble.gcode', """;End GCode
+M104 T1 S0                     ;extruder heater off
+M104 T0 S0                     ;extruder heater off
+M140 S0                     ;heated bed heater off (if you have it)
+G91                                    ;relative positioning
+G1 E-1 F300                            ;retract the filament a bit before lifting the nozzle, to release some of the pressure
+G1 Z+0.5 E-5 X-20 Y-20 F{travel_speed} ;move Z up a bit and retract filament even more
+G28 X0 Y0                              ;move X/Y to min endstops, so the head is out of the way
+M84                         ;steppers off
+G90                         ;absolute positioning
+;{profile_string}
+""", str, 'alteration', 'alteration')
 
 #######################################################################################
 setting('support_start.gcode', '', str, 'alteration', 'alteration')
@@ -1178,7 +1220,9 @@ def minimalExtruderCount():
 		return 1
 	if getProfileSetting('support') == 'None':
 		return 1
-	if getProfileSetting('support_dual_extrusion') == 'Second extruder':
+	if getProfileSetting('support_dual_extrusion') == 'Second extruder' or getProfileSetting('support_dual_extrusion') == 'First extruder':
+		return 2
+	if getPreference('simpleModeExtruder') == '2_Right Extruder':
 		return 2
 	return 1
 
@@ -1248,7 +1292,7 @@ def isTagIn(tag, contents):
 	return tag in contents
 
 ### Get the alteration file for output. (Used by Skeinforge)
-def getAlterationFileContents(filename, extruderCount = 1):
+def getAlterationFileContents(filename, extruderCount):
 	prefix = ''
 	postfix = ''
 	alterationContents = getAlterationFile(filename)
@@ -1261,18 +1305,83 @@ def getAlterationFileContents(filename, extruderCount = 1):
 			return 'M25 ;Stop reading from this point on.\n;CURA_PROFILE_STRING:%s\n' % (getProfileString())
 		return ''
 	if filename == 'start.gcode':
+		#If we are in simple mode and want to use the left extruder
 		if getPreference('startMode') == 'Simple' and getMachineSetting('machine_type') == 'BCN3DSigma' and getPreference('simpleModeExtruder') == '1_Left Extruder':
-			alterationContents = getAlterationFile("startleft.gcode")
+			if getProfileSetting('support') == 'Touching buildplate' and getProfileSetting('support_dual_extrusion') == 'Second extruder':
+				extruderCount = 2
+				gcode_parameter_key = 'S'
+				if getMachineSetting('gcode_flavor') == 'Mach3/LinuxCNC':
+					gcode_parameter_key = 'P'
+				if extruderCount > 1:
+					alterationContents = getAlterationFile("start%d.gcode" % (extruderCount))
+				eSteps = getMachineSettingFloat('steps_per_e')
+				if eSteps > 0:
+					prefix += 'M92 E%f\n' % (eSteps)
+				temp = getProfileSettingFloat('print_temperature')
+				bedTemp = 0
+				if getMachineSetting('has_heated_bed') == 'True':
+					bedTemp = getProfileSettingFloat('print_bed_temperature')
+				if bedTemp > 0 and not isTagIn('{print_bed_temperature}', alterationContents):
+					prefix += 'M190 %s%f\n' % (gcode_parameter_key, bedTemp)
+				if temp > 0 and not isTagIn('{print_temperature}', alterationContents):
+					if extruderCount > 1:
+						for n in xrange(1, extruderCount):
+							t = temp
+							if n > 0 and getProfileSettingFloat('print_temperature%d' % (n+1)) > 0:
+								t = getProfileSettingFloat('print_temperature%d' % (n+1))
+							prefix += 'M104 T%d %s%f\n' % (n, gcode_parameter_key, t)
+						for n in xrange(0, extruderCount):
+							t = temp
+							if n > 0 and getProfileSettingFloat('print_temperature%d' % (n+1)) > 0:
+								t = getProfileSettingFloat('print_temperature%d' % (n+1))
+							prefix += 'M109 T%d %s%f\n' % (n, gcode_parameter_key, t)
+						prefix += 'T0\n'
+					else:
+						prefix += 'M109 %s%f\n' % (gcode_parameter_key, temp)
+			else:
+				alterationContents = getAlterationFile("startleft.gcode")
+		#If we are in simple mode and want to use the right extruder
 		elif getPreference('startMode') == 'Simple' and getMachineSetting('machine_type') == 'BCN3DSigma' and getPreference('simpleModeExtruder') == '2_Right Extruder':
-			alterationContents = getAlterationFile("startright.gcode")
+			if getProfileSetting('support') == 'Touching buildplate' and getProfileSetting('support_dual_extrusion') == 'First extruder':
+				extruderCount = 2
+				gcode_parameter_key = 'S'
+				if getMachineSetting('gcode_flavor') == 'Mach3/LinuxCNC':
+					gcode_parameter_key = 'P'
+				if extruderCount > 1:
+					alterationContents = getAlterationFile("startrightdouble.gcode")
+				eSteps = getMachineSettingFloat('steps_per_e')
+				if eSteps > 0:
+					prefix += 'M92 E%f\n' % (eSteps)
+				temp = getProfileSettingFloat('print_temperature')
+				bedTemp = 0
+				if getMachineSetting('has_heated_bed') == 'True':
+					bedTemp = getProfileSettingFloat('print_bed_temperature')
+				if bedTemp > 0 and not isTagIn('{print_bed_temperature}', alterationContents):
+					prefix += 'M190 %s%f\n' % (gcode_parameter_key, bedTemp)
+				if temp > 0 and not isTagIn('{print_temperature}', alterationContents):
+					if extruderCount > 1:
+						for n in xrange(0, 1):
+							t = temp
+							if n > 0 and getProfileSettingFloat('print_temperature%d' % (n+1)) > 0:
+								t = getProfileSettingFloat('print_temperature%d' % (n+1))
+							prefix += 'M104 T%d %s%f\n' % (n, gcode_parameter_key, t)
+						for n in reversed(xrange(0, extruderCount)):
+							t = temp
+							if n > 0 and getProfileSettingFloat('print_temperature%d' % (n+1)) > 0:
+								t = getProfileSettingFloat('print_temperature%d' % (n+1))
+							prefix += 'M109 T%d %s%f\n' % (n, gcode_parameter_key, t)
+						prefix += 'T1\n'
+					else:
+						prefix += 'M109 %s%f\n' % (gcode_parameter_key, temp)
+			else:
+				alterationContents = getAlterationFile("startright.gcode")
+		#If we are not on simple mode or if we want to use both extruders
 		else:
 			gcode_parameter_key = 'S'
 			if getMachineSetting('gcode_flavor') == 'Mach3/LinuxCNC':
 				gcode_parameter_key = 'P'
 			if extruderCount > 1:
 				alterationContents = getAlterationFile("start%d.gcode" % (extruderCount))
-			#For the start code, hack the temperature and the steps per E value into it. So the temperature is reached before the start code extrusion.
-			#We also set our steps per E here, if configured.
 			eSteps = getMachineSettingFloat('steps_per_e')
 			if eSteps > 0:
 				prefix += 'M92 E%f\n' % (eSteps)
@@ -1280,7 +1389,6 @@ def getAlterationFileContents(filename, extruderCount = 1):
 			bedTemp = 0
 			if getMachineSetting('has_heated_bed') == 'True':
 				bedTemp = getProfileSettingFloat('print_bed_temperature')
-
 			if bedTemp > 0 and not isTagIn('{print_bed_temperature}', alterationContents):
 				prefix += 'M190 %s%f\n' % (gcode_parameter_key, bedTemp)
 			if temp > 0 and not isTagIn('{print_temperature}', alterationContents):
@@ -1299,8 +1407,16 @@ def getAlterationFileContents(filename, extruderCount = 1):
 				else:
 					prefix += 'M109 %s%f\n' % (gcode_parameter_key, temp)
 	elif filename == 'end.gcode':
-		if extruderCount > 1: #poner un if que tenga que ver con el modo de impresion que estamos utilizando
+		if getPreference('startMode') == 'Simple' and getMachineSetting('machine_type') == 'BCN3DSigma' and getPreference('simpleModeExtruder') == '1_Left Extruder':
+			alterationContents = getAlterationFile("endleft.gcode")
+		if getPreference('startMode') == 'Simple' and getMachineSetting('machine_type') == 'BCN3DSigma' and getPreference('simpleModeExtruder') == '2_Right Extruder':
+			alterationContents = getAlterationFile("endright.gcode")
+		if getPreference('startMode') == 'Simple' and getMachineSetting('machine_type') == 'BCN3DSigma' and getPreference('simpleModeExtruder') == '2_Right Extruder' and getProfileSetting('support_dual_extrusion') == 'Second extruder':
+			alterationContents = getAlterationFile("endright.gcode")
+		if getPreference('startMode') == 'Simple' and getMachineSetting('machine_type') == 'BCN3DSigma' and getPreference('simpleModeExtruder') == '1_Left Extruder' and getProfileSetting('support_dual_extrusion') == 'First extruder':
+			alterationContents = getAlterationFile("endleft.gcode")
+		if getPreference('startMode') == 'Simple' and getMachineSetting('machine_type') == 'BCN3DSigma' and getPreference('simpleModeExtruder') == '2_Right Extruder' and getProfileSetting('support_dual_extrusion') == 'First extruder':
+			alterationContents = getAlterationFile("endrightdouble.gcode")
+		if extruderCount > 1:
 			alterationContents = getAlterationFile("end%d.gcode" % (extruderCount))
-		#Append the profile string to the end of the GCode, so we can load it from the GCode file later.
-		#postfix = ';CURA_PROFILE_STRING:%s\n' % (getProfileString())
 	return unicode(prefix + re.sub("(.)\{([^\}]*)\}", replaceTagMatch, alterationContents).rstrip() + '\n' + postfix).strip().encode('utf-8') + '\n'

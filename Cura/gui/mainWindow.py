@@ -582,7 +582,6 @@ class mainWindow(wx.Frame):
 
     def OnCustomFirmware(self, e):
         """
-
         :rtype :
         """
         if profile.getMachineSetting('machine_type').startswith('ultimaker'):
