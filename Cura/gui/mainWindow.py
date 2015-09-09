@@ -503,7 +503,9 @@ class mainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnUpdateHardwareFirmware, self.updateHardwareFirmwareInstallMenu)
 
     def OnLoadProfile(self, e):
-        dlg=wx.FileDialog(self, _("Select profile file to load"), os.path.split(profile.getPreference('lastFile'))[0], style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
+        if sys.platform.startswith('win'):
+            os.chdir(r"C:\\Program Files (x86)\\Cura-BCN3D\\resources\\configurations")
+        dlg=wx.FileDialog(self, _("Select profile file to load"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
         dlg.SetWildcard("ini files (*.ini)|*.ini")
         if dlg.ShowModal() == wx.ID_OK:
             profileFile = dlg.GetPath()

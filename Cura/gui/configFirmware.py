@@ -344,7 +344,7 @@ class FirstConnectPrinterSigma(InfoPage):
             wx.CallAfter(self.infoBox.SetReadyIndicator)
         elif self.comm.isError():
             wx.CallAfter(self.commState.SetBitmap, self.crossBitmap)
-            wx.CallAfter(self.infoBox.SetError, _("Failed to establish connection with the printer."), 'http://wiki.ultimaker.com/Cura:_Connection_problems')
+            wx.CallAfter(self.infoBox.SetError, _("Failed to establish connection with the printer."), 'https://github.com/BCN3D/BCN3D-Cura-Windows/issues')
             wx.CallAfter(self.machineState.SetLabel, '%s' % (self.comm.getErrorString()))
             wx.CallAfter(self.errorLogButton.Show, True)
             wx.CallAfter(self.Layout)
