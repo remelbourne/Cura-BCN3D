@@ -504,7 +504,9 @@ class mainWindow(wx.Frame):
 
     def OnLoadProfile(self, e):
         if sys.platform.startswith('win'):
-            os.chdir(r"C:\\Program Files (x86)\\Cura-BCN3D\\resources\\configurations")
+            os.chdir(r"C:\\Program Files (x86)\\Cura-BCN3D-"+version.getVersion()+"\\resources\\configurations")
+        elif sys.platform.startswith('darwin'):
+            os.chdir(os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Configurations')
         dlg=wx.FileDialog(self, _("Select profile file to load"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
         dlg.SetWildcard("ini files (*.ini)|*.ini")
         if dlg.ShowModal() == wx.ID_OK:
@@ -659,12 +661,12 @@ class mainWindow(wx.Frame):
             print "Could not write to clipboard, unable to get ownership. Another program is using the clipboard."
 
     def OnCheckForUpdate(self, e):
-        newVersion = version.checkForNewerVersion()
+        newVersion = version.checkForNewVersion()
 
         if newVersion is not None:
             if wx.MessageBox(_("A new version of Cura is available, would you like to download?"), _("New version available"), wx.YES_NO | wx.ICON_INFORMATION) == wx.YES:
                 webbrowser.open(newVersion)
-        else:
+        elif newVersion is None:
             wx.MessageBox(_("You are running the latest version of Cura!"), _("Awesome!"), wx.ICON_INFORMATION)
 
     def OnAbout(self, e):

@@ -71,8 +71,8 @@ def getLatestFHVersion(ver):
 
     #Go to a different url depending on the printer to get the desired firmware
     if profile.getMachineSetting('machine_type') == 'BCN3DSigma':
-        base_url = 'https://github.com/remelbourne/BCN3DSigma-Firmware-Updates/archive/'
-        url = 'https://github.com/remelbourne/BCN3DSigma-Firmware-Updates/releases/'
+        base_url = 'https://github.com/BCN3D/BCN3DSigma-Firmware/archive/'
+        url = 'https://github.com/BCN3D/BCN3DSigma-Firmware/releases'
         urlContent = urllib2.urlopen(url)
         data = urlContent.read()
     elif profile.getMachineSetting('machine_type') == 'BCN3DPlus':
@@ -186,7 +186,7 @@ def downloadLatestFHVersion(version,base_url):
 def firmwareHAlreadyInstalled(version):
 
     if sys.platform == 'Windows':
-        os.path.expanduser('~') + '\Documents\Versions'
+        os.chdir(os.path.expanduser('~') + '\Documents')
     elif sys.platform == 'darwin':
         os.chdir(os.path.expanduser('~') + '/Documents')
 
@@ -226,6 +226,30 @@ def checkForNewerVersion():
         #print sys.exc_info()
         return None
     return None
+#############################################################################
+
+def checkForNewVersion():
+
+    ver = getVersion()
+
+    print 'La version que tengo ahora es:', ver
+
+    url = 'https://github.com/BCN3D/BCN3D-Cura-Windows/releases'
+    urlContent = urllib2.urlopen(url)
+    data = urlContent.read()
+
+    versionMatch = re.search(r'([\d.]+)\.(zip)', data)
+
+    if not versionMatch:
+        sys.exit('Couldn\'t find the Latest Version!')
+    version = versionMatch.group(1)
+    print 'The latest Cura-BCN3D version available is:',version
+
+    if ver == version:
+        return None
+
+    elif ver != version:
+        return "%s/tag/%s" % (url, version)
 
 if __name__ == '__main__':
     print(getVersion())
