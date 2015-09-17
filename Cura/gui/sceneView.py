@@ -230,18 +230,13 @@ class SceneView(openglGui.glGuiPanel):
             elif sys.platform.startswith('darwin'):
                 os.chdir(os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Configurations')
 
-            dlg=wx.FileDialog(self, _("Load BCN3D Configurations"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
+            dlg=wx.FileDialog(self, _("Load BCN3D Configurations"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
             dlg.SetWildcard("ini files (*.ini)|*.ini")
             if dlg.ShowModal() != wx.ID_OK:
                 dlg.Destroy()
-                return
             filenames = dlg.GetPaths()
             dlg.Destroy()
-            if len(filenames) < 1:
-                return False
-            profile.putPreference('lastFile', filenames[0])
             self.loadFiles(filenames)
-
 
     def showLoadModel(self, button = 1):
         if button == 1:
@@ -264,7 +259,6 @@ class SceneView(openglGui.glGuiPanel):
             dlg.Destroy()
             if len(filenames) < 1:
                 return False
-            profile.putPreference('lastFile', filenames[0])
             self.loadFiles(filenames)
 
     def showLoadDraudiModel(self, button = 1):
@@ -288,11 +282,8 @@ class SceneView(openglGui.glGuiPanel):
             dlg.SetWildcard(wildcardFilter)
             if dlg.ShowModal() != wx.ID_OK:
                 dlg.Destroy()
-                return
             filenames = dlg.GetPaths()
             dlg.Destroy()
-            if len(filenames) < 1:
-                return False
             self.loadFiles(filenames)
 
     def showSaveModel(self):
@@ -670,10 +661,7 @@ class SceneView(openglGui.glGuiPanel):
         self.QueueRefresh()
 
     def _onRunEngine(self, e):
-        if self._isSimpleMode:
-            self._engine.runEngine(self._scene, self.GetTopLevelParent().simpleSettingsPanel.getSettingOverrides())
-        else:
-            self._engine.runEngine(self._scene)
+        self._engine.runEngine(self._scene)
 
     def _updateEngineProgress(self, progressValue):
         result = self._engine.getResult()
