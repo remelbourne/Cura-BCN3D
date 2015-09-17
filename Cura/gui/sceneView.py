@@ -24,12 +24,12 @@ from Cura.util import sliceEngine
 from Cura.util import pluginInfo
 from Cura.util import removableStorage
 from Cura.util import explorer
+from Cura.util import version
 from Cura.util.printerConnection import printerConnectionManager
 from Cura.gui.util import previewTools
 from Cura.gui.util import openglHelpers
 from Cura.gui.util import openglGui
 from Cura.gui.util import engineResultView
-from Cura.gui.tools import youmagineGui
 from Cura.gui.tools import imageToMesh
 
 class SceneView(openglGui.glGuiPanel):
@@ -63,7 +63,7 @@ class SceneView(openglGui.glGuiPanel):
         self.tempMatrix = None
 
         self.openFileButton      = openglGui.glButton(self, 4, _("Load"), (0,0), self.showLoadModel)
-        self.printButton         = openglGui.glButton(self, 6, _("Print"), (1,0), self.OnPrintButton)
+        self.printButton         = openglGui.glButton(self, 6, _("Print"), (2,0), self.OnPrintButton)
         self.printButton.setDisabled(True)
 
         group = []
@@ -104,8 +104,8 @@ class SceneView(openglGui.glGuiPanel):
 
         self.viewSelection = openglGui.glComboButton(self, _("View mode"), [7,19,11,15,23], [_("Normal"), _("Overhang"), _("Transparent"), _("X-Ray"), _("Layers")], (-1,0), self.OnViewChange)
 
-        self.youMagineButton = openglGui.glButton(self, 26, _("Share on YouMagine"), (2,0), lambda button: youmagineGui.youmagineManager(self.GetTopLevelParent(), self._scene))
-        self.youMagineButton.setDisabled(True)
+        self.configsButton = openglGui.glButton(self, 26, _("Profiles"), (1,0), self.OnLoadConfigurations)
+        self.configsButton.setDisabled(False)
 
         self.notification = openglGui.glNotification(self, (0, 0))
 
@@ -134,11 +134,11 @@ class SceneView(openglGui.glGuiPanel):
         self.printButton.setBottomText('')
         self.viewSelection.setValue(4)
         self.printButton.setDisabled(False)
-        self.youMagineButton.setDisabled(True)
+        self.configsButton.setDisabled(False)
         self.OnViewChange()
 
     def loadSceneFiles(self, filenames):
-        self.youMagineButton.setDisabled(False)
+        self.configsButton.setDisabled(False)
         #if self.viewSelection.getValue() == 4:
         #	self.viewSelection.setValue(0)
         #	self.OnViewChange()
@@ -222,6 +222,27 @@ class SceneView(openglGui.glGuiPanel):
         self._scene.arrangeAll()
         self._scene.centerAll()
 
+
+    def OnLoadConfigurations(self, button = 1):
+        if button == 1:
+            if sys.platform.startswith('win'):
+                os.chdir(r"C:\\Program Files (x86)\\Cura-BCN3D-"+version.getVersion()+"\\resources\\configurations")
+            elif sys.platform.startswith('darwin'):
+                os.chdir(os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Configurations')
+
+            dlg=wx.FileDialog(self, _("Load BCN3D Configurations"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
+            dlg.SetWildcard("ini files (*.ini)|*.ini")
+            if dlg.ShowModal() != wx.ID_OK:
+                dlg.Destroy()
+                return
+            filenames = dlg.GetPaths()
+            dlg.Destroy()
+            if len(filenames) < 1:
+                return False
+            profile.putPreference('lastFile', filenames[0])
+            self.loadFiles(filenames)
+
+
     def showLoadModel(self, button = 1):
         if button == 1:
             dlg=wx.FileDialog(self, _("Open 3D model"), os.path.split(profile.getPreference('lastFile'))[0], style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
@@ -244,6 +265,34 @@ class SceneView(openglGui.glGuiPanel):
             if len(filenames) < 1:
                 return False
             profile.putPreference('lastFile', filenames[0])
+            self.loadFiles(filenames)
+
+    def showLoadDraudiModel(self, button = 1):
+        if button == 1:
+            if sys.platform.startswith('win'):
+                os.chdir(r"C:\\Program Files (x86)\\Cura-BCN3D-"+version.getVersion()+"\\resources\\draudi_stl")
+            elif sys.platform.startswith('darwin'):
+                os.chdir(os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Draudi_STL')
+
+            dlg=wx.FileDialog(self, _("Open 3D Draudi model"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
+
+            wildcardList = ';'.join(map(lambda s: '*' + s, meshLoader.loadSupportedExtensions() + imageToMesh.supportedExtensions() + ['.g', '.gcode']))
+            wildcardFilter = "All (%s)|%s;%s" % (wildcardList, wildcardList, wildcardList.upper())
+            wildcardList = ';'.join(map(lambda s: '*' + s, meshLoader.loadSupportedExtensions()))
+            wildcardFilter += "|Mesh files (%s)|%s;%s" % (wildcardList, wildcardList, wildcardList.upper())
+            wildcardList = ';'.join(map(lambda s: '*' + s, imageToMesh.supportedExtensions()))
+            wildcardFilter += "|Image files (%s)|%s;%s" % (wildcardList, wildcardList, wildcardList.upper())
+            wildcardList = ';'.join(map(lambda s: '*' + s, ['.g', '.gcode']))
+            wildcardFilter += "|GCode files (%s)|%s;%s" % (wildcardList, wildcardList, wildcardList.upper())
+
+            dlg.SetWildcard(wildcardFilter)
+            if dlg.ShowModal() != wx.ID_OK:
+                dlg.Destroy()
+                return
+            filenames = dlg.GetPaths()
+            dlg.Destroy()
+            if len(filenames) < 1:
+                return False
             self.loadFiles(filenames)
 
     def showSaveModel(self):

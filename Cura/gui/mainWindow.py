@@ -72,6 +72,8 @@ class mainWindow(wx.Frame):
         self.fileMenu = wx.Menu()
         i = self.fileMenu.Append(-1, _("Load model file...\tCTRL+L"))
         self.Bind(wx.EVT_MENU, lambda e: self.scene.showLoadModel(), i)
+        i = self.fileMenu.Append(-1, _("Load Draudi file...\tCTRL+D"))
+        self.Bind(wx.EVT_MENU, lambda e: self.scene.showLoadDraudiModel(), i)
         i = self.fileMenu.Append(-1, _("Save model...\tCTRL+S"))
         self.Bind(wx.EVT_MENU, lambda e: self.scene.showSaveModel(), i)
         i = self.fileMenu.Append(-1, _("Reload platform\tF5"))
@@ -88,7 +90,7 @@ class mainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: self.scene._showEngineLog(), i)
 
         self.fileMenu.AppendSeparator()
-        i = self.fileMenu.Append(-1, _("Open Profile..."))
+        i = self.fileMenu.Append(-1, _("Open Profile...\tCTRL+C"))
         self.normalModeOnlyItems.append(i)
         self.Bind(wx.EVT_MENU, self.OnLoadProfile, i)
         i = self.fileMenu.Append(-1, _("Save Profile..."))
