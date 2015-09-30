@@ -24,12 +24,12 @@ from Cura.util import sliceEngine
 from Cura.util import pluginInfo
 from Cura.util import removableStorage
 from Cura.util import explorer
-from Cura.util import version
 from Cura.util.printerConnection import printerConnectionManager
 from Cura.gui.util import previewTools
 from Cura.gui.util import openglHelpers
 from Cura.gui.util import openglGui
 from Cura.gui.util import engineResultView
+from Cura.gui.tools import youmagineGui
 from Cura.gui.tools import imageToMesh
 
 class SceneView(openglGui.glGuiPanel):
@@ -134,11 +134,11 @@ class SceneView(openglGui.glGuiPanel):
         self.printButton.setBottomText('')
         self.viewSelection.setValue(4)
         self.printButton.setDisabled(False)
-        self.configsButton.setDisabled(False)
+        #self.youMagineButton.setDisabled(True)
         self.OnViewChange()
 
     def loadSceneFiles(self, filenames):
-        self.configsButton.setDisabled(False)
+        #self.youMagineButton.setDisabled(False)
         #if self.viewSelection.getValue() == 4:
         #	self.viewSelection.setValue(0)
         #	self.OnViewChange()
@@ -222,20 +222,25 @@ class SceneView(openglGui.glGuiPanel):
         self._scene.arrangeAll()
         self._scene.centerAll()
 
-
     def OnLoadConfigurations(self, button = 1):
         if button == 1:
+            dir = r"C:\\Program Files (x86)\\Cura-BCN3D\\resources\\configurations"
             if sys.platform.startswith('win'):
-                os.chdir(r"C:\\Program Files (x86)\\Cura-BCN3D-"+version.getVersion()+"\\resources\\configurations")
+                os.chdir(dir)
             elif sys.platform.startswith('darwin'):
                 os.chdir(os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Configurations')
 
-            dlg=wx.FileDialog(self, _("Load BCN3D Configurations"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
+            dlg=wx.FileDialog(self, _("Load BCN3D Configurations"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
+
             dlg.SetWildcard("ini files (*.ini)|*.ini")
+
             if dlg.ShowModal() != wx.ID_OK:
                 dlg.Destroy()
+                return
             filenames = dlg.GetPaths()
             dlg.Destroy()
+            if len(filenames) < 1:
+                return False
             self.loadFiles(filenames)
 
     def showLoadModel(self, button = 1):
@@ -259,31 +264,7 @@ class SceneView(openglGui.glGuiPanel):
             dlg.Destroy()
             if len(filenames) < 1:
                 return False
-            self.loadFiles(filenames)
-
-    def showLoadDraudiModel(self, button = 1):
-        if button == 1:
-            if sys.platform.startswith('win'):
-                os.chdir(r"C:\\Program Files (x86)\\Cura-BCN3D-"+version.getVersion()+"\\resources\\draudi_stl")
-            elif sys.platform.startswith('darwin'):
-                os.chdir(os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Draudi_STL')
-
-            dlg=wx.FileDialog(self, _("Open 3D Draudi model"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
-
-            wildcardList = ';'.join(map(lambda s: '*' + s, meshLoader.loadSupportedExtensions() + imageToMesh.supportedExtensions() + ['.g', '.gcode']))
-            wildcardFilter = "All (%s)|%s;%s" % (wildcardList, wildcardList, wildcardList.upper())
-            wildcardList = ';'.join(map(lambda s: '*' + s, meshLoader.loadSupportedExtensions()))
-            wildcardFilter += "|Mesh files (%s)|%s;%s" % (wildcardList, wildcardList, wildcardList.upper())
-            wildcardList = ';'.join(map(lambda s: '*' + s, imageToMesh.supportedExtensions()))
-            wildcardFilter += "|Image files (%s)|%s;%s" % (wildcardList, wildcardList, wildcardList.upper())
-            wildcardList = ';'.join(map(lambda s: '*' + s, ['.g', '.gcode']))
-            wildcardFilter += "|GCode files (%s)|%s;%s" % (wildcardList, wildcardList, wildcardList.upper())
-
-            dlg.SetWildcard(wildcardFilter)
-            if dlg.ShowModal() != wx.ID_OK:
-                dlg.Destroy()
-            filenames = dlg.GetPaths()
-            dlg.Destroy()
+            profile.putPreference('lastFile', filenames[0])
             self.loadFiles(filenames)
 
     def showSaveModel(self):
@@ -661,7 +642,10 @@ class SceneView(openglGui.glGuiPanel):
         self.QueueRefresh()
 
     def _onRunEngine(self, e):
-        self._engine.runEngine(self._scene)
+        if self._isSimpleMode:
+            self._engine.runEngine(self._scene, self.GetTopLevelParent().simpleSettingsPanel.getSettingOverrides())
+        else:
+            self._engine.runEngine(self._scene)
 
     def _updateEngineProgress(self, progressValue):
         result = self._engine.getResult()
@@ -1054,18 +1038,15 @@ class SceneView(openglGui.glGuiPanel):
             if openglHelpers.hasShaderSupport():
                 self._objectShader = openglHelpers.GLShader("""
                     varying float light_amount;
-
                     void main(void)
                     {
                         gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
                         gl_FrontColor = gl_Color;
-
                         light_amount = abs(dot(normalize(gl_NormalMatrix * gl_Normal), normalize(gl_LightSource[0].position.xyz)));
                         light_amount += 0.2;
                     }
                                     ""","""
                     varying float light_amount;
-
                     void main(void)
                     {
                         gl_FragColor = vec4(gl_Color.xyz * light_amount, gl_Color[3]);
@@ -1075,12 +1056,10 @@ class SceneView(openglGui.glGuiPanel):
                     uniform float cosAngle;
                     uniform mat3 rotMatrix;
                     varying float light_amount;
-
                     void main(void)
                     {
                         gl_Position = gl_ModelViewProjectionMatrix * gl_Vertex;
                         gl_FrontColor = gl_Color;
-
                         light_amount = abs(dot(normalize(gl_NormalMatrix * gl_Normal), normalize(gl_LightSource[0].position.xyz)));
                         light_amount += 0.2;
                         if (normalize(rotMatrix * gl_Normal).z < -cosAngle)
@@ -1090,7 +1069,6 @@ class SceneView(openglGui.glGuiPanel):
                     }
                 ""","""
                     varying float light_amount;
-
                     void main(void)
                     {
                         if (light_amount == -10.0)
@@ -1105,7 +1083,6 @@ class SceneView(openglGui.glGuiPanel):
                     uniform float intensity;
                     uniform float scale;
                     varying float light_amount;
-
                     void main(void)
                     {
                         vec4 tmp = gl_Vertex;
@@ -1113,14 +1090,12 @@ class SceneView(openglGui.glGuiPanel):
                         tmp.y += sin(tmp.z/3.0+intensity*40.0) * scale * intensity;
                         gl_Position = gl_ModelViewProjectionMatrix * tmp;
                         gl_FrontColor = gl_Color;
-
                         light_amount = abs(dot(normalize(gl_NormalMatrix * gl_Normal), normalize(gl_LightSource[0].position.xyz)));
                         light_amount += 0.2;
                     }
             ""","""
                 uniform float intensity;
                 varying float light_amount;
-
                 void main(void)
                 {
                     gl_FragColor = vec4(gl_Color.xyz * light_amount, 1.0-intensity);

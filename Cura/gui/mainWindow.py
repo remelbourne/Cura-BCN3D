@@ -73,7 +73,7 @@ class mainWindow(wx.Frame):
         i = self.fileMenu.Append(-1, _("Load model file...\tCTRL+L"))
         self.Bind(wx.EVT_MENU, lambda e: self.scene.showLoadModel(), i)
         i = self.fileMenu.Append(-1, _("Load Draudi file...\tCTRL+D"))
-        self.Bind(wx.EVT_MENU, lambda e: self.scene.showLoadDraudiModel(), i)
+        self.Bind(wx.EVT_MENU, self.OnLoadDraudiModel, i)
         i = self.fileMenu.Append(-1, _("Save model...\tCTRL+S"))
         self.Bind(wx.EVT_MENU, lambda e: self.scene.showSaveModel(), i)
         i = self.fileMenu.Append(-1, _("Reload platform\tF5"))
@@ -90,9 +90,9 @@ class mainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: self.scene._showEngineLog(), i)
 
         self.fileMenu.AppendSeparator()
-        i = self.fileMenu.Append(-1, _("Open Profile...\tCTRL+C"))
         self.normalModeOnlyItems.append(i)
-        self.Bind(wx.EVT_MENU, self.OnLoadProfile, i)
+        i = self.fileMenu.Append(-1, _("Open Profile...\tCTRL+C"))
+        self.Bind(wx.EVT_MENU, lambda e: self.scene.OnLoadConfigurations(), i)
         i = self.fileMenu.Append(-1, _("Save Profile..."))
         self.normalModeOnlyItems.append(i)
         self.Bind(wx.EVT_MENU, self.OnSaveProfile, i)
@@ -504,13 +504,16 @@ class mainWindow(wx.Frame):
         self.updateHardwareFirmwareInstallMenu = self.machineMenu.Append(-1, _("Check for firmware updates..."))
         self.Bind(wx.EVT_MENU, self.OnUpdateHardwareFirmware, self.updateHardwareFirmwareInstallMenu)
 
-    def OnLoadProfile(self, e):
+    def OnLoadDraudiModel(self, e):
+        print os.getcwd()
+        dir = r"C:\\Program Files (x86)\\Cura-BCN3D\\resources\\draudi_stl"
         if sys.platform.startswith('win'):
-            os.chdir(r"C:\\Program Files (x86)\\Cura-BCN3D-"+version.getVersion()+"\\resources\\configurations")
+            os.chdir(dir)
         elif sys.platform.startswith('darwin'):
-            os.chdir(os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Configurations')
-        dlg=wx.FileDialog(self, _("Select profile file to load"), os.getcwd(), style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
-        dlg.SetWildcard("ini files (*.ini)|*.ini")
+            os.chdir(os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Draudi_STL')
+
+        dlg=wx.FileDialog(self, _("Open 3D Draudi model"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
+        dlg.SetWildcard("stl files (*.stl)|*.stl")
         if dlg.ShowModal() == wx.ID_OK:
             profileFile = dlg.GetPath()
             profile.loadProfile(profileFile)
