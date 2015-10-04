@@ -505,23 +505,36 @@ class mainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnUpdateHardwareFirmware, self.updateHardwareFirmwareInstallMenu)
 
     def OnLoadDraudiModel(self, e):
-        print os.getcwd()
-        dir = r"C:\\Program Files (x86)\\Cura-BCN3D\\resources\\draudi_stl"
+        #If we are running windows then we have to search for the draudi files following the windows folders
         if sys.platform.startswith('win'):
+            dir = r"C:\\Program Files (x86)\\Cura-BCN3D\\resources\\draudi_stl"
             os.chdir(dir)
+
+            dlg=wx.FileDialog(self, _("Open 3D Draudi model"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
+            dlg.SetWildcard("stl files (*.stl)|*.stl")
+            if dlg.ShowModal() == wx.ID_OK:
+                profileFile = dlg.GetPath()
+                profile.loadProfile(profileFile)
+                self.updateProfileToAllControls()
+
+                # Update the Profile MRU
+                self.addToProfileMRU(profileFile)
+                dlg.Destroy()
+        #If we are on mac the path to the files changes and so we need a different directory
         elif sys.platform.startswith('darwin'):
-            os.chdir(os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Draudi_STL')
+                dir = os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Draudi_STL'
+                os.chdir(dir)
 
-        dlg=wx.FileDialog(self, _("Open 3D Draudi model"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
-        dlg.SetWildcard("stl files (*.stl)|*.stl")
-        if dlg.ShowModal() == wx.ID_OK:
-            profileFile = dlg.GetPath()
-            profile.loadProfile(profileFile)
-            self.updateProfileToAllControls()
+                dlg=wx.FileDialog(self, _("Open 3D Draudi model"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
+                dlg.SetWildcard("stl files (*.stl)|*.stl")
+                if dlg.ShowModal() == wx.ID_OK:
+                    profileFile = dlg.GetPath()
+                    profile.loadProfile(profileFile)
+                    self.updateProfileToAllControls()
 
-            # Update the Profile MRU
-            self.addToProfileMRU(profileFile)
-        dlg.Destroy()
+                    # Update the Profile MRU
+                    self.addToProfileMRU(profileFile)
+                dlg.Destroy()
 
     def OnLoadProfileFromGcode(self, e):
         dlg=wx.FileDialog(self, _("Select gcode file to load profile from"), os.path.split(profile.getPreference('lastFile'))[0], style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
