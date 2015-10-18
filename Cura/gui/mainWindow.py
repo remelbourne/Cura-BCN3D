@@ -73,7 +73,7 @@ class mainWindow(wx.Frame):
         i = self.fileMenu.Append(-1, _("Load model file...\tCTRL+L"))
         self.Bind(wx.EVT_MENU, lambda e: self.scene.showLoadModel(), i)
         i = self.fileMenu.Append(-1, _("Load Draudi file...\tCTRL+D"))
-        self.Bind(wx.EVT_MENU, self.OnLoadDraudiModel, i)
+        self.Bind(wx.EVT_MENU, lambda e: self.scene.onLoadDraudiModel(), i)
         i = self.fileMenu.Append(-1, _("Save model...\tCTRL+S"))
         self.Bind(wx.EVT_MENU, lambda e: self.scene.showSaveModel(), i)
         i = self.fileMenu.Append(-1, _("Reload platform\tF5"))
@@ -503,38 +503,6 @@ class mainWindow(wx.Frame):
 
         self.updateHardwareFirmwareInstallMenu = self.machineMenu.Append(-1, _("Check for firmware updates..."))
         self.Bind(wx.EVT_MENU, self.OnUpdateHardwareFirmware, self.updateHardwareFirmwareInstallMenu)
-
-    def OnLoadDraudiModel(self, e):
-        #If we are running windows then we have to search for the draudi files following the windows folders
-        if sys.platform.startswith('win'):
-            dir = r"C:\\Program Files (x86)\\Cura-BCN3D\\resources\\draudi_stl"
-            os.chdir(dir)
-
-            dlg=wx.FileDialog(self, _("Open 3D Draudi model"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
-            dlg.SetWildcard("stl files (*.stl)|*.stl")
-            if dlg.ShowModal() == wx.ID_OK:
-                profileFile = dlg.GetPath()
-                profile.loadProfile(profileFile)
-                self.updateProfileToAllControls()
-
-                # Update the Profile MRU
-                self.addToProfileMRU(profileFile)
-                dlg.Destroy()
-        #If we are on mac the path to the files changes and so we need a different directory
-        elif sys.platform.startswith('darwin'):
-                dir = os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Draudi_STL'
-                os.chdir(dir)
-
-                dlg=wx.FileDialog(self, _("Open 3D Draudi model"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
-                dlg.SetWildcard("stl files (*.stl)|*.stl")
-                if dlg.ShowModal() == wx.ID_OK:
-                    profileFile = dlg.GetPath()
-                    profile.loadProfile(profileFile)
-                    self.updateProfileToAllControls()
-
-                    # Update the Profile MRU
-                    self.addToProfileMRU(profileFile)
-                dlg.Destroy()
 
     def OnLoadProfileFromGcode(self, e):
         dlg=wx.FileDialog(self, _("Select gcode file to load profile from"), os.path.split(profile.getPreference('lastFile'))[0], style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)

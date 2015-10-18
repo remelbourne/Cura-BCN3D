@@ -222,16 +222,15 @@ class SceneView(openglGui.glGuiPanel):
         self._scene.arrangeAll()
         self._scene.centerAll()
 
-    def OnLoadConfigurations(self, button = 1):
+    def onLoadDraudiModel(self, button = 1):
         if button == 1:
-            #if we are running on windows
             if sys.platform.startswith('win'):
-                dir = r"C:\\Program Files (x86)\\Cura-BCN3D\\resources\\configurations"
+                dir = r"C:\\Program Files (x86)\\Cura-BCN3D\\resources\\draudi_stl"
                 os.chdir(dir)
 
-                dlg=wx.FileDialog(self, _("Load BCN3D Configurations"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
+                dlg=wx.FileDialog(self, _("Load Draudi File"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
 
-                dlg.SetWildcard("ini files (*.ini)|*.ini")
+                dlg.SetWildcard("stl files (*.stl)|*.STL")
 
                 if dlg.ShowModal() != wx.ID_OK:
                     dlg.Destroy()
@@ -243,12 +242,12 @@ class SceneView(openglGui.glGuiPanel):
                 self.loadFiles(filenames)
             #If we a running on mac os
             elif sys.platform.startswith('darwin'):
-                dir = os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Configurations'
+                dir = os.path.expanduser('~') + '/Applications/Cura/Cura-BCN3D/Contents/Resources/configurations'
                 os.chdir(dir)
 
-                dlg=wx.FileDialog(self, _("Load BCN3D Configurations"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
+                dlg=wx.FileDialog(self, _("Load Draudi File"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
 
-                dlg.SetWildcard("ini files (*.ini)|*.ini")
+                dlg.SetWildcard("stl files (*.stl)|*.STL")
 
                 if dlg.ShowModal() != wx.ID_OK:
                     dlg.Destroy()
@@ -258,6 +257,27 @@ class SceneView(openglGui.glGuiPanel):
                 if len(filenames) < 1:
                     return False
                 self.loadFiles(filenames)
+
+    def OnLoadConfigurations(self, button = 1):
+        if button == 1:
+            dir = r"C:\\Program Files (x86)\\Cura-BCN3D\\resources\\configurations"
+            if sys.platform.startswith('win'):
+                os.chdir(dir)
+            elif sys.platform.startswith('darwin'):
+                os.chdir(os.path.expanduser('~') + '/Applications/Cura/Cura/Contents/Resources/Configurations')
+
+            dlg=wx.FileDialog(self, _("Load BCN3D Configurations"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
+
+            dlg.SetWildcard("ini files (*.ini)|*.ini")
+
+            if dlg.ShowModal() != wx.ID_OK:
+                dlg.Destroy()
+                return
+            filenames = dlg.GetPaths()
+            dlg.Destroy()
+            if len(filenames) < 1:
+                return False
+            self.loadFiles(filenames)
 
     def showLoadModel(self, button = 1):
         if button == 1:
