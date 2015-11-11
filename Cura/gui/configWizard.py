@@ -414,7 +414,7 @@ class MachineSelectPage(InfoPage):
         self.AddText(_("What kind of machine do you have:"))
 
 
-        self.BCN3DSigmaRadio = self.AddRadioButton("BCN3D " + u"\u03A3", style=wx.RB_GROUP)
+        self.BCN3DSigmaRadio = self.AddRadioButton("BCN3D Sigma", style=wx.RB_GROUP)
         self.BCN3DSigmaRadio.SetValue(True)
         self.BCN3DSigmaRadio.Bind(wx.EVT_RADIOBUTTON, self.OnBCN3DSigmaSelect)
         self.BCN3DPlusRadio = self.AddRadioButton("BCN3D +")
@@ -484,7 +484,7 @@ class MachineSelectPage(InfoPage):
                 profile.putMachineSetting('machine_width', '210')
                 profile.putMachineSetting('machine_depth', '297')
                 profile.putMachineSetting('machine_height', '210')
-                profile.putMachineSetting('machine_name', 'BCN3D ' + u"\u03A3")
+                profile.putMachineSetting('machine_name', 'BCN3D Sigma')
                 profile.putMachineSetting('machine_type', 'BCN3DSigma')
                 profile.putMachineSetting('has_heated_bed', 'True')
                 profile.putProfileSetting('nozzle_size', '0.4')
@@ -1083,7 +1083,7 @@ class UltimakerCalibrateStepsPerEPage(InfoPage):
 
 class BCN3DSigmaReadyPage(InfoPage):
     def __init__(self, parent):
-        super(BCN3DSigmaReadyPage,self).__init__(parent, _("BCN3D " + u"\u03A3"))
+        super(BCN3DSigmaReadyPage,self).__init__(parent, _("BCN3D Sigma"))
         self.AddText(_('Congratulations on the purchase of your brand new BCN3D Sigma.'))
         self.AddText(_('Cura is now ready to be used with your BCN3D Sigma'))
         self.AddSeperator()

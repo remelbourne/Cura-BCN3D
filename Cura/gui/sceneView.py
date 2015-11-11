@@ -268,14 +268,14 @@ class SceneView(openglGui.glGuiPanel):
                 dlg=wx.FileDialog(self, _("Load BCN3D Configurations"), dir, style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST|wx.FD_MULTIPLE)
                 dlg.SetWildcard("ini files (*.ini)|*.ini")
 
-                if dlg.ShowModal() == wx.ID_OK:
-                    profileFile = dlg.GetPath()
-                    profile.loadProfile(profileFile)
-                    mainWindow.updateProfileToAllControls()
-
-                    # Update the Profile MRU
-                    self.addToProfileMRU(profileFile)
+                if dlg.ShowModal() != wx.ID_OK:
+                    dlg.Destroy()
+                    return
+                filenames = dlg.GetPaths()
                 dlg.Destroy()
+                if len(filenames) < 1:
+                    return False
+                self.loadFiles(filenames)
             #If we a running on mac os
             elif sys.platform.startswith('darwin'):
                 dir = os.path.expanduser('~') + '/Applications/Cura/Cura-BCN3D/Contents/Resources/configurations'
@@ -694,7 +694,7 @@ class SceneView(openglGui.glGuiPanel):
 
     def _onRunEngine(self, e):
         if self._isSimpleMode:
-            self._engine.runEngine(self._scene, self.GetTopLevelParent().easySettingsPanel.getSettingOverrides())
+            self._engine.runEngine(self._scene, self.GetTopLevelParent().simpleSettingsPanel.getSettingOverrides())
         else:
             self._engine.runEngine(self._scene)
 

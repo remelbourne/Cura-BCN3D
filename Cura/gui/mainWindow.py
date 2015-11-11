@@ -218,11 +218,11 @@ class mainWindow(wx.Frame):
         self.scene = sceneView.SceneView(self.rightPane)
 
         ##Gui components##
-        self.easySettingsPanel = easySettingsPanel(self.leftPane, self.scene.sceneUpdated)
+        self.simpleSettingsPanel = simpleMode.simpleModePanel(self.leftPane, self.scene.sceneUpdated)
         self.normalSettingsPanel = normalSettingsPanel(self.leftPane, self.scene.sceneUpdated)
 
         self.leftSizer = wx.BoxSizer(wx.VERTICAL)
-        self.leftSizer.Add(self.easySettingsPanel, 1, wx.EXPAND)
+        self.leftSizer.Add(self.simpleSettingsPanel, 1)
         self.leftSizer.Add(self.normalSettingsPanel, 1, wx.EXPAND)
         self.leftPane.SetSizer(self.leftSizer)
 
@@ -242,7 +242,7 @@ class mainWindow(wx.Frame):
 
         self.SetBackgroundColour(self.normalSettingsPanel.GetBackgroundColour())
 
-        self.easySettingsPanel.Show(False)
+        self.simpleSettingsPanel.Show(False)
         self.normalSettingsPanel.Show(False)
 
         # Set default window size & position
@@ -364,7 +364,7 @@ class mainWindow(wx.Frame):
         isSimple = profile.getPreference('startMode') == 'Simple'
 
         self.normalSettingsPanel.Show(not isSimple)
-        self.easySettingsPanel.Show(isSimple)
+        self.simpleSettingsPanel.Show(isSimple)
         self.leftPane.Layout()
 
         for i in self.normalModeOnlyItems:
@@ -380,8 +380,8 @@ class mainWindow(wx.Frame):
             self.normalSashPos = self.splitter.GetSashPosition()
 
             # Change location of sash to width of quick mode pane
-            (width, height) = self.easySettingsPanel.GetSizer().GetSize()
-            self.splitter.SetSashPosition(145, True)
+            (width, height) = self.simpleSettingsPanel.GetSizer().GetSize()
+            self.splitter.SetSashPosition(width, True)
 
             # Disable sash
             self.splitter.SetSashSize(0)
@@ -460,16 +460,16 @@ class mainWindow(wx.Frame):
     def updateProfileToAllControls(self):
         self.scene.updateProfileToControls()
         self.normalSettingsPanel.updateProfileToControls()
-        self.easySettingsPanel.updateProfileToControls()
+        self.simpleSettingsPanel.updateProfileToControls()
 
     def reloadSettingPanels(self):
-        self.leftSizer.Detach(self.easySettingsPanel)
+        self.leftSizer.Detach(self.simpleSettingsPanel)
         self.leftSizer.Detach(self.normalSettingsPanel)
-        self.easySettingsPanel.Destroy()
+        self.simpleSettingsPanel.Destroy()
         self.normalSettingsPanel.Destroy()
-        self.easySettingsPanel = easySettingsPanel(self.leftPane, lambda : self.scene.sceneUpdated())
+        self.simpleSettingsPanel = simpleMode.simpleModePanel(self.leftPane, lambda : self.scene.sceneUpdated())
         self.normalSettingsPanel = normalSettingsPanel(self.leftPane, lambda : self.scene.sceneUpdated())
-        self.leftSizer.Add(self.easySettingsPanel, 1, wx.EXPAND)
+        self.leftSizer.Add(self.simpleSettingsPanel, 1)
         self.leftSizer.Add(self.normalSettingsPanel, 1, wx.EXPAND)
         self.updateSliceMode()
         self.updateProfileToAllControls()
@@ -562,8 +562,8 @@ class mainWindow(wx.Frame):
         dlg.Destroy()
         if result:
             profile.resetProfile()
-            #for k, v in self.easySettingsPanel.getSettingOverrides():
-                #profile.putProfileSetting(k, v)
+            for k, v in self.simpleSettingsPanel.getSettingOverrides().items():
+                profile.putProfileSetting(k, v)
             self.updateProfileToAllControls()
         self.updateSliceMode()
 
@@ -803,115 +803,3 @@ class normalSettingsPanel(configBase.configPanelBase):
         if self.alterationPanel is not None:
             self.alterationPanel.updateProfileToControls()
         self.pluginPanel.updateProfileToControls()
-
-#Our own simple mode for BCN3D Technologies
-class easySettingsPanel(configBase.configPanelBase):
-    "Main user interface window"
-
-    def __init__(self, parent, callback=None):
-        super(easySettingsPanel, self).__init__(parent, callback)
-
-        # Main tabs
-        self.nb = wx.Notebook(self)
-        self.SetSizer(wx.BoxSizer(wx.HORIZONTAL))
-        self.GetSizer().Add(self.nb, 1, wx.EXPAND)
-
-        (left, right, self.printPanel) = self.CreateDynamicConfigTab(self.nb, _('MEX'))
-        self._addSettingsToPanels('single', left, right)
-        self.SizeLabelWidths(left, right)
-
-        (left, right, self.advancedPanel) = self.CreateDynamicConfigTab(self.nb, _('IDEX'))
-        self._addSettingsToPanels('dual', left, right)
-        self.SizeLabelWidths(left, right)
-
-        self.Bind(wx.EVT_SIZE, self.OnSize)
-
-        self.nb.SetSize(self.GetSize())
-        self.UpdateSize(self.printPanel)
-        self.UpdateSize(self.advancedPanel)
-
-    def _addSettingsToPanels(self, category, left, right):
-        count = len(profile.getSubCategoriesFor(category)) + len(profile.getSettingsForCategory(category))
-
-        p = left
-        n = 0
-        for title in profile.getSubCategoriesFor(category):
-            n += 1 + len(profile.getSettingsForCategory(category, title))
-            if n > count / 2:
-                p = right
-            configBase.TitleRow(p, _(title))
-            for s in profile.getSettingsForCategory(category, title):
-                configBase.SettingRow(p, s.getName())
-
-    def SizeLabelWidths(self, left, right):
-        leftWidth = self.getLabelColumnWidth(left)
-        rightWidth = self.getLabelColumnWidth(right)
-        maxWidth = max(leftWidth, rightWidth)
-        self.setLabelColumnWidth(left, maxWidth)
-        self.setLabelColumnWidth(right, maxWidth)
-
-    def OnSize(self, e):
-        # Make the size of the Notebook control the same size as this control
-        self.nb.SetSize(self.GetSize())
-
-        # Propegate the OnSize() event (just in case)
-        e.Skip()
-
-        # Perform out resize magic
-        self.UpdateSize(self.printPanel)
-        self.UpdateSize(self.advancedPanel)
-
-    def UpdateSize(self, configPanel):
-        sizer = configPanel.GetSizer()
-
-        # Pseudocde
-        # if horizontal:
-        #     if width(col1) < best_width(col1) || width(col2) < best_width(col2):
-        #         switch to vertical
-        # else:
-        #     if width(col1) > (best_width(col1) + best_width(col1)):
-        #         switch to horizontal
-        #
-
-        col1 = configPanel.leftPanel
-        colSize1 = col1.GetSize()
-        colBestSize1 = col1.GetBestSize()
-        col2 = configPanel.rightPanel
-        colSize2 = col2.GetSize()
-        colBestSize2 = col2.GetBestSize()
-
-        orientation = sizer.GetOrientation()
-
-        if orientation == wx.HORIZONTAL:
-            if (colSize1[0] <= colBestSize1[0]) or (colSize2[0] <= colBestSize2[0]):
-                configPanel.Freeze()
-                sizer = wx.BoxSizer(wx.VERTICAL)
-                sizer.Add(configPanel.leftPanel, flag=wx.EXPAND)
-                sizer.Add(configPanel.rightPanel, flag=wx.EXPAND)
-                configPanel.SetSizer(sizer)
-                # sizer.Layout()
-                configPanel.Layout()
-                self.Layout()
-                configPanel.Thaw()
-        else:
-            if max(colSize1[0], colSize2[0]) > (colBestSize1[0] + colBestSize2[0]):
-                configPanel.Freeze()
-                sizer = wx.BoxSizer(wx.HORIZONTAL)
-                sizer.Add(configPanel.leftPanel, proportion=1, border=35, flag=wx.EXPAND)
-                sizer.Add(configPanel.rightPanel, proportion=1, flag=wx.EXPAND)
-                configPanel.SetSizer(sizer)
-                # sizer.Layout()
-                configPanel.Layout()
-                self.Layout()
-                configPanel.Thaw()
-
-    def updateProfileToControls(self):
-        pass
-
-    def getSettingOverrides(self):
-        settings = {}
-        for setting in profile.settingsList:
-            if not setting.isProfile():
-                continue
-            settings[setting.getName()] = setting.getDefault()
-
