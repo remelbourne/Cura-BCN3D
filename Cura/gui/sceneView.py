@@ -56,6 +56,7 @@ class SceneView(openglGui.glGuiPanel):
         self._platformTexture = None
         self._isSimpleMode = True
         self._printerConnectionManager = printerConnectionManager.PrinterConnectionManager()
+        self.normalModeOnlyItems = []
 
         self._viewport = None
         self._modelMatrix = None
@@ -106,6 +107,7 @@ class SceneView(openglGui.glGuiPanel):
 
         self.configsButton = openglGui.glButton(self, 26, _("Profiles"), (1,0), self.OnLoadConfigurations)
         self.configsButton.setDisabled(False)
+
 
         self.notification = openglGui.glNotification(self, (0, 0))
 

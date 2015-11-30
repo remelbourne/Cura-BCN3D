@@ -4,6 +4,7 @@ import wx
 import os
 import webbrowser
 import sys
+import ConfigParser as configparser
 
 
 from Cura.gui import configBase
@@ -90,8 +91,8 @@ class mainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, lambda e: self.scene._showEngineLog(), i)
 
         self.fileMenu.AppendSeparator()
-        self.normalModeOnlyItems.append(i)
         i = self.fileMenu.Append(-1, _("Open Profile...\tCTRL+C"))
+        self.normalModeOnlyItems.append(i)
         self.Bind(wx.EVT_MENU, lambda e: self.scene.OnLoadConfigurations(), i)
         i = self.fileMenu.Append(-1, _("Save Profile..."))
         self.normalModeOnlyItems.append(i)
@@ -218,11 +219,11 @@ class mainWindow(wx.Frame):
         self.scene = sceneView.SceneView(self.rightPane)
 
         ##Gui components##
-        self.simpleSettingsPanel = simpleMode.simpleModePanel(self.leftPane, self.scene.sceneUpdated)
+        self.simpleSettingsPanel = easySettingsPanel(self.leftPane, self.scene.sceneUpdated)
         self.normalSettingsPanel = normalSettingsPanel(self.leftPane, self.scene.sceneUpdated)
 
         self.leftSizer = wx.BoxSizer(wx.VERTICAL)
-        self.leftSizer.Add(self.simpleSettingsPanel, 1)
+        self.leftSizer.Add(self.simpleSettingsPanel, 1, wx.EXPAND)
         self.leftSizer.Add(self.normalSettingsPanel, 1, wx.EXPAND)
         self.leftPane.SetSizer(self.leftSizer)
 
@@ -380,8 +381,8 @@ class mainWindow(wx.Frame):
             self.normalSashPos = self.splitter.GetSashPosition()
 
             # Change location of sash to width of quick mode pane
-            (width, height) = self.simpleSettingsPanel.GetSizer().GetSize()
-            self.splitter.SetSashPosition(width, True)
+            #(width, height) = self.simpleSettingsPanel.GetSizer().GetSize()
+            self.splitter.SetSashPosition(153, True)
 
             # Disable sash
             self.splitter.SetSashSize(0)
@@ -400,6 +401,8 @@ class mainWindow(wx.Frame):
 
     def onOneAtATimeSwitch(self, e):
         profile.putPreference('oneAtATime', self.oneAtATime.IsChecked())
+        if self.oneAtATime.IsChecked() and profile.getMachineSettingFloat('extruder_head_size_height') < 1:
+            wx.MessageBox(_('For "One at a time" printing, you need to have entered the correct head size and gantry height in the machine settings'), _('One at a time warning'), wx.OK | wx.ICON_WARNING)
         self.scene.updateProfileToControls()
         self.scene._scene.pushFree()
         self.scene.sceneUpdated()
@@ -467,9 +470,9 @@ class mainWindow(wx.Frame):
         self.leftSizer.Detach(self.normalSettingsPanel)
         self.simpleSettingsPanel.Destroy()
         self.normalSettingsPanel.Destroy()
-        self.simpleSettingsPanel = simpleMode.simpleModePanel(self.leftPane, lambda : self.scene.sceneUpdated())
+        self.simpleSettingsPanel = easySettingsPanel(self.leftPane, lambda : self.scene.sceneUpdated())
         self.normalSettingsPanel = normalSettingsPanel(self.leftPane, lambda : self.scene.sceneUpdated())
-        self.leftSizer.Add(self.simpleSettingsPanel, 1)
+        self.leftSizer.Add(self.simpleSettingsPanel, 1, wx.EXPAND)
         self.leftSizer.Add(self.normalSettingsPanel, 1, wx.EXPAND)
         self.updateSliceMode()
         self.updateProfileToAllControls()
@@ -560,20 +563,17 @@ class mainWindow(wx.Frame):
         dlg = wx.MessageDialog(self, _("Copy the settings from quickprint to your full settings?\n(This will overwrite any full setting modifications you have)"), _("Profile copy"), wx.YES_NO | wx.ICON_QUESTION)
         result = dlg.ShowModal() == wx.ID_YES
         dlg.Destroy()
-        if result:
-            profile.resetProfile()
-            for k, v in self.simpleSettingsPanel.getSettingOverrides().items():
-                profile.putProfileSetting(k, v)
-            self.updateProfileToAllControls()
+        #if result:
+            #profile.resetProfile()
+            #for k, v in self.simpleSettingsPanel.getSettingOverrides:
+                #profile.putProfileSetting(k, v)
+        self.updateProfileToAllControls()
         self.updateSliceMode()
 
     def OnDefaultMarlinFirmware(self, e):
         firmwareInstall.InstallFirmware(self)
 
     def OnCustomFirmware(self, e):
-        """
-        :rtype :
-        """
         if profile.getMachineSetting('machine_type').startswith('ultimaker'):
             wx.MessageBox(_("Warning: Installing a custom firmware does not guarantee that you machine will function correctly, and could damage your machine."), _("Firmware update"), wx.OK | wx.ICON_EXCLAMATION)
         dlg=wx.FileDialog(self, _("Open firmware to upload"), os.path.split(profile.getPreference('lastFile'))[0], style=wx.FD_OPEN|wx.FD_FILE_MUST_EXIST)
@@ -585,6 +585,7 @@ class mainWindow(wx.Frame):
                 return
             #For some reason my Ubuntu 10.10 crashes here.
             firmwareInstall.InstallFirmware(self, filename)
+
 
     def OnUpdateHardwareFirmware(self, e):
         configFirmware.ConfigFirmware()
@@ -648,7 +649,6 @@ class mainWindow(wx.Frame):
 
     def OnCheckForUpdate(self, e):
         newVersion = version.checkForNewVersion()
-
         if newVersion is not None:
             if wx.MessageBox(_("A new version of Cura is available, would you like to download?"), _("New version available"), wx.YES_NO | wx.ICON_INFORMATION) == wx.YES:
                 webbrowser.open(newVersion)
@@ -803,3 +803,538 @@ class normalSettingsPanel(configBase.configPanelBase):
         if self.alterationPanel is not None:
             self.alterationPanel.updateProfileToControls()
         self.pluginPanel.updateProfileToControls()
+
+
+class easySettingsPanel(configBase.configPanelBase):
+    "Main user interface window"
+    def __init__(self, parent, callback = None):
+        super(easySettingsPanel, self).__init__(parent, callback)
+
+        #Main tabs
+        self.nb = wx.Notebook(self)
+        self.SetSizer(wx.BoxSizer(wx.HORIZONTAL))
+        self.GetSizer().Add(self.nb, 1, wx.EXPAND)
+
+        (left, right, self.mexPanel) = self.CreateDynamicConfigTab(self.nb, _('MEX'))
+        self._addSettingsToPanels('single', left, right)
+        self.SizeLabelWidths(left, right)
+
+        if profile.getMachineSetting('machine_type') == 'BCN3DSigma':
+            (left, right, self.idexPanel) = self.CreateDynamicConfigTab(self.nb, _('IDEX'))
+            self._addSettingsToPanels('dual', left, right)
+
+        self.SizeLabelWidths(left, right)
+
+        self.Bind(wx.EVT_SIZE, self.OnSize)
+
+        self.nb.SetSize(self.GetSize())
+        self.UpdateSize(self.mexPanel)
+        if profile.getMachineSetting('machine_type') == 'BCN3DSigma':
+            self.UpdateSize(self.idexPanel)
+
+
+    def _addSettingsToPanels(self, category, left, right):
+        count = len(profile.getSubCategoriesFor(category)) + len(profile.getSettingsForCategory(category))
+
+        p = left
+        n = 0
+        for title in profile.getSubCategoriesFor(category):
+            n += 1 + len(profile.getSettingsForCategory(category, title))
+            if n > count / 2:
+                p = right
+            configBase.TitleRow(p, _(title))
+            for s in profile.getSettingsForCategory(category, title):
+                configBase.SettingRow(p, s.getName())
+
+    def SizeLabelWidths(self, left, right):
+        leftWidth = self.getLabelColumnWidth(left)
+        rightWidth = self.getLabelColumnWidth(right)
+        maxWidth = max(leftWidth, rightWidth)
+        self.setLabelColumnWidth(left, maxWidth)
+        self.setLabelColumnWidth(right, maxWidth)
+
+    def OnSize(self, e):
+        # Make the size of the Notebook control the same size as this control
+        self.nb.SetSize(self.GetSize())
+
+        # Propegate the OnSize() event (just in case)
+        e.Skip()
+
+        # Perform out resize magic
+        self.UpdateSize(self.mexPanel)
+        if profile.getMachineSetting('machine_type') == 'BCN3DSigma':
+            self.UpdateSize(self.idexPanel)
+
+    def UpdateSize(self, configPanel):
+        sizer = configPanel.GetSizer()
+
+        # Pseudocde
+        # if horizontal:
+        #     if width(col1) < best_width(col1) || width(col2) < best_width(col2):
+        #         switch to vertical
+        # else:
+        #     if width(col1) > (best_width(col1) + best_width(col1)):
+        #         switch to horizontal
+        #
+
+        col1 = configPanel.leftPanel
+        colSize1 = col1.GetSize()
+        colBestSize1 = col1.GetBestSize()
+        col2 = configPanel.rightPanel
+        colSize2 = col2.GetSize()
+        colBestSize2 = col2.GetBestSize()
+
+        orientation = sizer.GetOrientation()
+
+        if orientation == wx.HORIZONTAL:
+            if (colSize1[0] <= colBestSize1[0]) or (colSize2[0] <= colBestSize2[0]):
+                configPanel.Freeze()
+                sizer = wx.BoxSizer(wx.VERTICAL)
+                sizer.Add(configPanel.leftPanel, flag=wx.EXPAND)
+                sizer.Add(configPanel.rightPanel, flag=wx.EXPAND)
+                configPanel.SetSizer(sizer)
+                #sizer.Layout()
+                configPanel.Layout()
+                self.Layout()
+                configPanel.Thaw()
+        else:
+            if max(colSize1[0], colSize2[0]) > (colBestSize1[0] + colBestSize2[0]):
+                configPanel.Freeze()
+                sizer = wx.BoxSizer(wx.HORIZONTAL)
+                sizer.Add(configPanel.leftPanel, proportion=1, border=35, flag=wx.EXPAND)
+                sizer.Add(configPanel.rightPanel, proportion=1, flag=wx.EXPAND)
+                configPanel.SetSizer(sizer)
+                #sizer.Layout()
+                configPanel.Layout()
+                self.Layout()
+                configPanel.Thaw()
+
+    def getSettingOverrides(self):
+        settings = {}
+        for setting in profile.settingsList:
+            if not setting.isProfile():
+                continue
+            settings[setting.getName()] = setting.getDefault()
+
+
+        beggining = ';Sliced at: {day} {date} {time}\n;Basic settings: Layer height: {layer_height} Walls: {wall_thickness} Fill: {fill_density}\n' \
+                    ';Print time: {print_time}\n;Filament used: {filament_amount}m {filament_weight}g\n;Filament cost: {filament_cost}\n' \
+                    ';M190 S{print_bed_temperature}  ;Uncomment to add your own bed temperature line\n;M109 S{print_temperature} ;Uncomment to add your own temperature line\n' \
+                    'G21        ;metric values\nG90        ;absolute positioning\nM82        ;set extruder to absolute mode\n' \
+                    'M107       ;start with the fan off\nG28 X0 Y0  ;move X/Y to min endstops\nG28 Z0     ;move Z to min endstops\n' \
+                    'G1 Z15.0 F{travel_speed} ;move the platform down 15mm\nG92 E0                  ;zero the extruded length\n' \
+                    'G1 F200 E3              ;extrude 3mm of feed stock\nG92 E0                  ;zero the extruded length again\n' \
+                    'G1 F{travel_speed}\n;Put printing message on LCD screen\nM117 Printing...\n'
+
+        beggining2 = ';Sliced at: {day} {date} {time}\n;Basic settings: Layer height: {layer_height} Walls: {wall_thickness} Fill: {fill_density}\n' \
+                     ';Print time: {print_time}\n;Filament used: {filament_amount}m {filament_weight}g\n;Filament cost: {filament_cost}\n' \
+                     ';M190 S{print_bed_temperature} ;Uncomment to add your own bed temperature line\n;M104 S{print_temperature} ;Uncomment to add your own temperature line\n' \
+                     ';M109 T1 S{print_temperature2} ;Uncomment to add your own temperature line\n;M109 T0 S{print_temperature} ;Uncomment to add your own temperature line\n' \
+                     'G21        ;metric values\nG90        ;absolute positioning\nM107       ;start with the fan off\nG28 X0 Y0  ;move X/Y to min endstops\n' \
+                     'G28 Z0     ;move Z to min endstops\nG1 Z15.0 F{travel_speed} ;move the platform down 15mm\nT1                      ;Switch to the 2nd extruder\n' \
+                     'G92 E0                  ;zero the extruded length\nG1 F200 E10             ;extrude 10mm of feed stock\nG92 E0                  ;zero the extruded length again\n' \
+                     'G1 F200 E-{retraction_dual_amount}\nT0                      ;Switch to the first extruder\nG92 E0                  ;zero the extruded length\n' \
+                     'G1 F200 E10             ;extrude 10mm of feed stock\nG92 E0                  ;zero the extruded length again\nG1 Z5 F200\nG1 F{travel_speed}\n' \
+                     ';Put printing message on LCD screen\nM117 Printing...\n'
+
+        end = 'M104 T0 S0                     ;extruder heater off\nM104 T1 S0                     ;extruder heater off\n' \
+              'M140 S0                     ;heated bed heater off (if you have it)\nG91                                    ;relative positioning\n' \
+              'G1 E-1 F300                            ;retract the filament a bit before lifting the nozzle, to release some of the pressure\n' \
+              'G1 Z+0.5 E-5 X-20 Y-20 F{travel_speed} ;move Z up a bit and retract filament even more\n' \
+              'G28 X0 Y0                              ;move X/Y to min endstops, so the head is out of the way\nM84                         ;steppers off\n' \
+              'G90                         ;absolute positioning\n;{profile_string}\n'
+
+        end2 = 'M104 S0                     ;extruder heater off\nM140 S0                     ;heated bed heater off (if you have it)\n' \
+               'G91                                    ;relative positioning\n' \
+               'G1 E-1 F300                            ;retract the filament a bit before lifting the nozzle, to release some of the pressure\n' \
+               'G1 Z+0.5 E-5 X-20 Y-20 F{travel_speed} ;move Z up a bit and retract filament even more\n' \
+               'G28 X0 Y0                              ;move X/Y to min endstops, so the head is out of the way\n' \
+               'M84                         ;steppers off\nG90                         ;absolute positioning\n;{profile_string}\n'
+
+        #We have a check for BCN3D Sigma because we also need to take care of both plus and r
+        if profile.getMachineSetting('machine_type') == 'BCN3DSigma':
+            #We first check for the options that could happen under quality fast
+            if profile.getProfileSetting('quality_fast') == 'True':
+                #We want to make sure that it is only set to one extruder, so just in case we do the following
+                settings['extruder_amount'] = 1
+                #Now we just add all the settings that are related to quality fast
+                settings['layer_height'] = 0.3
+                settings['wall_thickness'] = 0.8
+                settings['fill_density'] = 15
+                settings['bottom_layer_speed'] = 60
+                settings['infill_speed'] = 120
+                settings['solidarea_speed'] = 80
+                settings['inset0_speed'] = 60
+                settings['insetx_speed'] = 80
+                #First we check all the options for the left extruder and the materials
+                if profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T0 S220\nM104 T1 S25\nM190 S45\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T0 S250\nM104 T1 S25\nM190 S70\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T0 S250\nM104 T1 S25\nM190 S100\nT0\n' + beggining
+                #Then we check the option for the right extruder and the materials
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T1 S220\nM104 T0 S25\nM190 S45\nT1\n' + beggining
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T1 S250\nM104 T0 S25\nM190 S70\nT1\n' + beggining
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T1 S250\nM104 T0 S25\nM190 S100\nT1\n' + beggining
+                #Custom end.gcode
+                settings['end.gcode'] = end
+            #Second we check all the options for standard quality
+            elif profile.getProfileSetting('quality_standard') == 'True':
+                #We want to make sure that it is only set to one extruder, so just in case we do the following
+                settings['extruder_amount'] = 1
+                #Now we just add all the settings that are related to quality standard
+                settings['layer_height'] = 0.2
+                settings['wall_thickness'] = 0.8
+                settings['fill_density'] = 15
+                settings['bottom_layer_speed'] = 40
+                settings['infill_speed'] = 60
+                settings['solidarea_speed'] = 40
+                settings['inset0_speed'] = 40
+                settings['insetx_speed'] = 50
+                #First we check all the options for the left extruder and the materials
+                if profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T0 S220\nM104 T1 S25\nM190 S45\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T0 S250\nM104 T1 S25\nM190 S70\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T0 S250\nM104 T1 S25\nM190 S100\nT0\n' + beggining
+                #Then we check the option for the right extruder and the materials
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T1 S220\nM104 T0 S25\nM190 S45\nT1\n' + beggining
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T1 S250\nM104 T0 S25\nM190 S70\nT1\n' + beggining
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T1 S250\nM104 T0 S25\nM190 S100\nT1\n' + beggining
+                #Custom end.gcode
+                settings['end.gcode'] = end
+            #Third we check all the options for high quality
+            elif profile.getProfileSetting('quality_high') == 'True':
+                #We want to make sure that it is only set to one extruder, so just in case we do the following
+                settings['extruder_amount'] = 1
+                #Now we just add all the settings that are related to quality high
+                settings['layer_height'] = 0.1
+                settings['wall_thickness'] = 0.8
+                settings['fill_density'] = 15
+                settings['bottom_layer_speed'] = 35
+                settings['infill_speed'] = 50
+                settings['solidarea_speed'] = 35
+                settings['inset0_speed'] = 30
+                settings['insetx_speed'] = 40
+                #First we check all the options for the left extruder and the materials
+                if profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T0 S220\nM104 T1 S25\nM190 S45\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T0 S250\nM104 T1 S25\nM190 S70\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T0 S250\nM104 T1 S25\nM190 S100\nT0\n' + beggining
+                #Then we check the option for the right extruder and the materials
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T1 S220\nM104 T0 S25\nM190 S45\nT1\n' + beggining
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T1 S250\nM104 T0 S25\nM190 S70\nT1\n' + beggining
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T1 S250\nM104 T0 S25\nM190 S100\nT1\n' + beggining
+                #Custom end.gcode
+                settings['end.gcode'] = end
+            #Fourth, we check all the options for strong quality
+            elif profile.getProfileSetting('quality_strong') == 'True':
+                #We want to make sure that it is only set to one extruder, so just in case we do the following
+                settings['extruder_amount'] = 1
+                #Now we just add all the settings that are related to quality strong
+                settings['layer_height'] = 0.2
+                settings['wall_thickness'] = 1.6
+                settings['fill_density'] = 30
+                settings['bottom_layer_speed'] = 35
+                settings['infill_speed'] = 60
+                settings['solidarea_speed'] = 35
+                settings['inset0_speed'] = 30
+                settings['insetx_speed'] = 40
+                #First we check all the options for the left extruder and the materials
+                if profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T0 S220\nM104 T1 S25\nM190 S45\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T0 S250\nM104 T1 S25\nM190 S70\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T0 S250\nM104 T1 S25\nM190 S100\nT0\n' + beggining
+                #Then we check the option for the right extruder and the materials
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T1 S220\nM104 T0 S25\nM190 S45\nT1\n' + beggining
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T1 S250\nM104 T0 S25\nM190 S70\nT1\n' + beggining
+                elif profile.getProfileSetting('extruder_right') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T1 S250\nM104 T0 S25\nM190 S100\nT1\n' + beggining
+                #Custom end.gcode
+                settings['end.gcode'] = end
+            #Now we have the idex options
+            #Quality fast and dual
+            elif profile.getProfileSetting('quality_fast_dual') == 'True':
+                settings['layer_height'] = 0.3
+                settings['wall_thickness'] = 0.8
+                settings['fill_density'] = 15
+                settings['bottom_layer_speed'] = 60
+                settings['infill_speed'] = 120
+                settings['solidarea_speed'] = 80
+                settings['inset0_speed'] = 60
+                settings['insetx_speed'] = 80
+                #First we check with the left extruder and pla and all the other options on the right
+                if profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM104 T1 S220\nM109 T0 S220\nM190 S45\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S250\nM109 T0 S220\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S220\nM109 T0 S220\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S55\nM104 T1 S190\nM109 T0 S220\nM190 S55\nT0\n' + beggining2
+                #Now we check for the left extruder with abs and all the other option on the right
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S220\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S250\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S190\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                #Now we check for the left extruder with filaflex and all the other option on the right
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S220\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S190\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                #Now we want to check for the case in which we have supports on the right extruder
+                if profile.getProfileSetting('dual_support') == 'True':
+                    settings['support'] = 'Exterior Only'
+                    settings['support_dual_extrusion'] = 'Second extruder'
+                #Add custom end.gcode
+                settings['end.gcode'] = end
+            #Quality standard and dual
+            elif profile.getProfileSetting('quality_standard_dual') == 'True':
+                settings['layer_height'] = 0.2
+                settings['wall_thickness'] = 0.8
+                settings['fill_density'] = 15
+                settings['bottom_layer_speed'] = 40
+                settings['infill_speed'] = 60
+                settings['solidarea_speed'] = 40
+                settings['inset0_speed'] = 40
+                settings['insetx_speed'] = 50
+                #First we check with the left extruder and pla and all the other options on the right
+                if profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM104 T1 S220\nM109 T0 S220\nM190 S45\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S250\nM109 T0 S220\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S220\nM109 T0 S220\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S55\nM104 T1 S190\nM109 T0 S220\nM190 S55\nT0\n' + beggining2
+                #Now we check for the left extruder with abs and all the other option on the right
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S220\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S250\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S190\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                #Now we check for the left extruder with filaflex and all the other option on the right
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S220\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S190\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                #Now we want to check for the case in which we have supports on the right extruder
+                if profile.getProfileSetting('dual_support') == 'True':
+                    settings['support'] = 'Exterior Only'
+                    settings['support_dual_extrusion'] = 'Second extruder'
+                #Add custom end.gcode
+                settings['end.gcode'] = end
+            #Quality high and dual
+            elif profile.getProfileSetting('quality_high_dual') == 'True':
+                settings['layer_height'] = 0.1
+                settings['wall_thickness'] = 0.8
+                settings['fill_density'] = 15
+                settings['bottom_layer_speed'] = 35
+                settings['infill_speed'] = 50
+                settings['solidarea_speed'] = 35
+                settings['inset0_speed'] = 30
+                settings['insetx_speed'] = 40
+                #First we check with the left extruder and pla and all the other options on the right
+                if profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM104 T1 S220\nM109 T0 S220\nM190 S45\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S250\nM109 T0 S220\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S220\nM109 T0 S220\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S55\nM104 T1 S190\nM109 T0 S220\nM190 S55\nT0\n' + beggining2
+                #Now we check for the left extruder with abs and all the other option on the right
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S220\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S250\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S190\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                #Now we check for the left extruder with filaflex and all the other option on the right
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S220\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S190\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                #Now we want to check for the case in which we have supports on the right extruder
+                if profile.getProfileSetting('dual_support') == 'True':
+                    settings['support'] = 'Exterior Only'
+                    settings['support_dual_extrusion'] = 'Second extruder'
+                #Add custom end.gcode
+                settings['end.gcode'] = end
+            #Quality strong and dual
+            elif profile.getProfileSetting('quality_strong_dual') == 'True':
+                settings['layer_height'] = 0.2
+                settings['wall_thickness'] = 1.6
+                settings['fill_density'] = 30
+                settings['bottom_layer_speed'] = 35
+                settings['infill_speed'] = 60
+                settings['solidarea_speed'] = 35
+                settings['inset0_speed'] = 30
+                settings['insetx_speed'] = 40
+                #First we check with the left extruder and pla and all the other options on the right
+                if profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM104 T1 S220\nM109 T0 S220\nM190 S45\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S250\nM109 T0 S220\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S220\nM109 T0 S220\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('pla_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S55\nM104 T1 S190\nM109 T0 S220\nM190 S55\nT0\n' + beggining2
+                #Now we check for the left extruder with abs and all the other option on the right
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S220\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S250\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('abs_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM104 T1 S190\nM109 T0 S250\nM190 S70\nT0\n' + beggining2
+                #Now we check for the left extruder with filaflex and all the other option on the right
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('pla_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S220\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('abs_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('fila_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S250\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                elif profile.getProfileSetting('fila_left_dual') == 'True' and profile.getProfileSetting('pva_right_dual') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM104 T1 S190\nM109 T0 S250\nM190 S100\nT0\n' + beggining2
+                #Now we want to check for the case in which we have supports on the right extruder
+                if profile.getProfileSetting('dual_support') == 'True':
+                    settings['support'] = 'Exterior Only'
+                    settings['support_dual_extrusion'] = 'Second extruder'
+                #Add custom end.gcode
+                settings['end.gcode'] = end
+        #We have a check for BCN3D Plus
+        elif profile.getMachineSetting('machine_type') == 'BCN3DPlus' or profile.getMachineSetting('machine_type') == 'BCN3DR':
+            #We first check for the options that could happen under quality fast
+            if profile.getProfileSetting('quality_fast') == 'True':
+                #We want to make sure that it is only set to one extruder, so just in case we do the following
+                settings['extruder_amount'] = 1
+                #Now we just add all the settings that are related to quality fast
+                settings['layer_height'] = 0.3
+                settings['wall_thickness'] = 0.8
+                settings['fill_density'] = 15
+                settings['bottom_layer_speed'] = 60
+                settings['infill_speed'] = 100
+                settings['solidarea_speed'] = 70
+                settings['inset0_speed'] = 60
+                settings['insetx_speed'] = 80
+                #First we check all the options for the left extruder and the materials
+                if profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T0 S220\nM190 S45\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T0 S250\nM190 S70\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T0 S250\nM190 S100\nT0\n' + beggining
+                #Custom end.gcode
+                settings['end.gcode'] = end2
+            #Second we check all the options for standard quality
+            elif profile.getProfileSetting('quality_standard') == 'True':
+                #We want to make sure that it is only set to one extruder, so just in case we do the following
+                settings['extruder_amount'] = 1
+                #Now we just add all the settings that are related to quality standard
+                settings['layer_height'] = 0.2
+                settings['wall_thickness'] = 0.8
+                settings['fill_density'] = 15
+                settings['bottom_layer_speed'] = 40
+                settings['infill_speed'] = 60
+                settings['solidarea_speed'] = 40
+                settings['inset0_speed'] = 40
+                settings['insetx_speed'] = 50
+                #First we check all the options for the left extruder and the materials
+                if profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T0 S220\nM190 S45\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T0 S250\nM190 S70\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T0 S250\nM190 S100\nT0\n' + beggining
+                #Custom end.gcode
+                settings['end.gcode'] = end2
+            #Third we check all the options for high quality
+            elif profile.getProfileSetting('quality_high') == 'True':
+                #We want to make sure that it is only set to one extruder, so just in case we do the following
+                settings['extruder_amount'] = 1
+                #Now we just add all the settings that are related to quality high
+                settings['layer_height'] = 0.1
+                settings['wall_thickness'] = 0.8
+                settings['fill_density'] = 15
+                settings['bottom_layer_speed'] = 30
+                settings['infill_speed'] = 50
+                settings['solidarea_speed'] = 35
+                settings['inset0_speed'] = 30
+                settings['insetx_speed'] = 40
+                #First we check all the options for the left extruder and the materials
+                if profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T0 S220\nM190 S45\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T0 S250\nM190 S70\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T0 S250\nM190 S100\nT0\n' + beggining
+                #Custom end.gcode
+                settings['end.gcode'] = end2
+            #Fourth, we check all the options for strong quality
+            elif profile.getProfileSetting('quality_strong') == 'True':
+                #We want to make sure that it is only set to one extruder, so just in case we do the following
+                settings['extruder_amount'] = 1
+                #Now we just add all the settings that are related to quality strong
+                settings['layer_height'] = 0.2
+                settings['wall_thickness'] = 1.6
+                settings['fill_density'] = 30
+                settings['bottom_layer_speed'] = 40
+                settings['infill_speed'] = 60
+                settings['solidarea_speed'] = 40
+                settings['inset0_speed'] = 40
+                settings['insetx_speed'] = 50
+                #First we check all the options for the left extruder and the materials
+                if profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_pla') == 'True':
+                    settings['start.gcode'] = 'M140 S45\nM109 T0 S220\nM190 S45\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_abs') == 'True':
+                    settings['start.gcode'] = 'M140 S70\nM109 T0 S250\nM190 S70\nT0\n' + beggining
+                elif profile.getProfileSetting('extruder_left') == 'True' and profile.getProfileSetting('material_fila') == 'True':
+                    settings['start.gcode'] = 'M140 S100\nM109 T0 S250\nM190 S100\nT0\n' + beggining
+                #Custom end.gcode
+                settings['end.gcode'] = end2
+
+        return settings
+
+    def updateProfileToControls(self):
+        super(easySettingsPanel, self).updateProfileToControls()
+

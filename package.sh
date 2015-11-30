@@ -16,7 +16,7 @@ BUILD_TARGET=win32
 ##Do we need to create the final archive
 ARCHIVE_FOR_DISTRIBUTION=1
 ##Which version name are we appending to the final archive
-export BUILD_NAME=0.0.3
+export BUILD_NAME=0.1.2
 TARGET_DIR=Cura-BCN3D-${BUILD_NAME}-${BUILD_TARGET}
 
 ##Which CuraEngine to use
@@ -126,7 +126,7 @@ if [ $BUILD_TARGET = "win32" ]; then
 	checkTool $MAKE "mingw: http://www.mingw.org/"
 fi
 #For building under MacOS we need gnutar instead of tar
-if [ -z `which gnutar` ]; then
+if [ -z `which tar` ]; then
 	TAR=tar
 else
 	TAR=gnutar
@@ -159,11 +159,7 @@ fi
 #############################
 	
 if [ $BUILD_TARGET = "win32" ]; then
-	if [ -z `which i686-w64-mingw32-g++` ]; then
 		CXX=g++
-	else
-		CXX=i686-w64-mingw32-g++
-	fi
 fi
     
 
@@ -192,17 +188,7 @@ if (( ${ARCHIVE_FOR_DISTRIBUTION} )); then
 		#rm ${TARGET_DIR}.zip
 		#cd ${TARGET_DIR}
 		#7z a ../${TARGET_DIR}.zip *
-		#cd ..
-
-		if [ ! -z `which wine` ]; then
-			echo "primero"
-			#if we have wine, try to run our nsis script.
-			rm -rf scripts/win32/dist
-			ln -sf `pwd`/${TARGET_DIR} scripts/win32/dist
-			wine ~/.wine/drive_c/Program\ Files\ \(x86\)/NSIS/makensis.exe /DVERSION=${BUILD_NAME} scripts/win32/installer.nsi
-            if [ $? != 0 ]; then echo "Failed to package NSIS installer"; exit 1; fi
-			mv scripts/win32/Cura-BCN3D-${BUILD_NAME}.exe ./
-		fi
+		#cd ..		
 		if [ -f '/c//NSIS/makensis.exe' ]; then
 			echo "segundo"
 			rm -rf scripts/win32/dist
